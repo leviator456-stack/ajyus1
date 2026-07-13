@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-import Subscription from "../models/Subscription.js";
+import Subscription from "../models/subscription.js";
 import { PLANS } from "../config/plans.js";
 
 function getUserId(req) {
