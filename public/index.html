@@ -1,0 +1,3809 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="AJYUS AI chat interface" />
+  <title>AJYUS — AI Assistant</title>
+
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101112;
+      --sidebar: #090a0b;
+      --sidebar-hover: #17191b;
+      --panel: #181a1d;
+      --panel-2: #202327;
+      --input: #202225;
+      --border: rgba(255, 255, 255, 0.09);
+      --border-strong: rgba(255, 255, 255, 0.16);
+      --text: #f5f7f8;
+      --muted: #9ba1a8;
+      --muted-2: #70767d;
+      --accent: #ffffff;
+      --accent-text: #111315;
+      --danger: #ff6b6b;
+      --success: #37d67a;
+      --shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+      --sidebar-width: 276px;
+      --radius-lg: 24px;
+      --radius-md: 16px;
+      --radius-sm: 11px;
+    }
+
+    html[data-theme="light"] {
+      color-scheme: light;
+      --bg: #f7f7f8;
+      --sidebar: #ffffff;
+      --sidebar-hover: #f1f2f4;
+      --panel: #ffffff;
+      --panel-2: #f1f3f5;
+      --input: #ffffff;
+      --border: rgba(20, 22, 25, 0.09);
+      --border-strong: rgba(20, 22, 25, 0.16);
+      --text: #141619;
+      --muted: #60666d;
+      --muted-2: #8a9097;
+      --accent: #111315;
+      --accent-text: #ffffff;
+      --danger: #d64545;
+      --success: #118a46;
+      --shadow: 0 22px 70px rgba(18, 24, 32, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family:
+        Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+    }
+
+    body {
+      overflow: hidden;
+    }
+
+    button,
+    textarea,
+    input {
+      font: inherit;
+    }
+
+    button {
+      color: inherit;
+    }
+
+    .app {
+      display: grid;
+      grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
+      height: 100vh;
+      background: var(--bg);
+      transition: grid-template-columns 220ms ease;
+    }
+
+    @media (min-width: 901px) {
+      .app.sidebar-collapsed {
+        grid-template-columns: 0 minmax(0, 1fr);
+      }
+
+      .app.sidebar-collapsed .sidebar {
+        transform: translateX(-105%);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
+
+    .sidebar {
+      position: relative;
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      width: var(--sidebar-width);
+      min-width: 0;
+      height: 100vh;
+      overflow: hidden;
+      padding: 14px 12px 12px;
+      background: var(--sidebar);
+      border-right: 1px solid var(--border);
+      transition: transform 220ms ease, opacity 180ms ease, visibility 180ms ease;
+    }
+
+    .brand-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      min-height: 44px;
+      padding: 4px 7px 12px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 11px;
+      min-width: 0;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 33px;
+      height: 33px;
+      flex: 0 0 auto;
+      border-radius: 11px;
+      color: var(--accent-text);
+      background: var(--accent);
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+      font-size: 14px;
+      font-weight: 900;
+    }
+
+    .icon-button {
+      display: inline-grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      border: 0;
+      border-radius: 11px;
+      background: transparent;
+      cursor: pointer;
+      transition: background 160ms ease, transform 160ms ease;
+    }
+
+    .icon-button:hover {
+      background: var(--sidebar-hover);
+    }
+
+    .icon-button:active {
+      transform: scale(0.96);
+    }
+
+    .nav {
+      display: grid;
+      gap: 4px;
+    }
+
+    .nav-button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 11px;
+      border: 0;
+      border-radius: 11px;
+      color: var(--text);
+      background: transparent;
+      text-align: left;
+      text-decoration: none;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+
+    .nav-button:hover,
+    .nav-button.active {
+      background: var(--sidebar-hover);
+    }
+
+    .nav-button svg,
+    .icon-button svg {
+      width: 19px;
+      height: 19px;
+      flex: 0 0 auto;
+      stroke: currentColor;
+    }
+
+    .nav-button span {
+      font-size: 14px;
+      font-weight: 590;
+    }
+
+    .recents {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      flex: 1;
+      overflow: hidden;
+      margin-top: 24px;
+    }
+
+    .section-label {
+      padding: 0 11px 8px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .history-list {
+      min-height: 0;
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 5px;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+      scrollbar-gutter: stable;
+    }
+
+    .history-list::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .history-list::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .history-list::-webkit-scrollbar-thumb {
+      background: var(--border-strong);
+      border-radius: 999px;
+    }
+
+    .history-list::-webkit-scrollbar-thumb:hover {
+      background: var(--muted-2);
+    }
+
+    .history-item {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      gap: 8px;
+      padding: 10px 11px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .history-item:hover,
+    .history-item.active {
+      background: var(--sidebar-hover);
+    }
+
+    .history-title {
+      min-width: 0;
+      flex: 1;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      font-size: 13.5px;
+    }
+
+    .history-empty {
+      padding: 9px 11px;
+      color: var(--muted-2);
+      font-size: 12.5px;
+      line-height: 1.5;
+    }
+
+    .sidebar-footer {
+      padding-top: 9px;
+      border-top: 1px solid var(--border);
+    }
+
+    .profile-button {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .profile-button:hover {
+      background: var(--sidebar-hover);
+    }
+
+    .avatar {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ff784f, #ff4e78);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .profile-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .profile-name,
+    .profile-plan {
+      display: block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .profile-name {
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .profile-plan {
+      margin-top: 2px;
+      color: var(--muted);
+      font-size: 11.5px;
+    }
+
+    .legal-menu {
+      display: grid;
+      gap: 4px;
+      max-height: 0;
+      padding: 0;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(8px);
+      transition:
+        max-height 220ms ease,
+        opacity 170ms ease,
+        transform 220ms ease,
+        padding 220ms ease;
+    }
+
+    .sidebar-footer.open .legal-menu {
+      max-height: 190px;
+      padding-bottom: 8px;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .legal-menu-toggle {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 52px;
+      padding: 8px 9px;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      transition:
+        background 160ms ease,
+        border-color 160ms ease,
+        transform 160ms ease;
+    }
+
+    .legal-menu-toggle:hover,
+    .sidebar-footer.open .legal-menu-toggle {
+      background: var(--sidebar-hover);
+      border-color: var(--border);
+    }
+
+    .legal-menu-toggle:active {
+      transform: scale(0.985);
+    }
+
+    .legal-shield {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      flex: 0 0 auto;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--panel-2);
+    }
+
+    .legal-shield svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .legal-toggle-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .legal-toggle-copy strong,
+    .legal-toggle-copy small {
+      display: block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .legal-toggle-copy strong {
+      font-size: 13px;
+      font-weight: 760;
+    }
+
+    .legal-toggle-copy small {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .legal-chevron {
+      width: 17px;
+      height: 17px;
+      flex: 0 0 auto;
+      color: var(--muted);
+      transition: transform 180ms ease;
+    }
+
+    .sidebar-footer.open .legal-chevron {
+      transform: rotate(180deg);
+    }
+
+    .legal-option {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 29px minmax(0, 1fr);
+      align-items: center;
+      gap: 9px;
+      padding: 8px 9px;
+      border: 1px solid transparent;
+      border-radius: 11px;
+      background: transparent;
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      transition: background 150ms ease, border-color 150ms ease;
+    }
+
+    .legal-option:hover,
+    .legal-option.active {
+      background: var(--sidebar-hover);
+      border-color: var(--border);
+    }
+
+    .legal-option-icon {
+      display: grid;
+      place-items: center;
+      width: 29px;
+      height: 29px;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 850;
+      letter-spacing: 0.04em;
+    }
+
+    .legal-option strong,
+    .legal-option small {
+      display: block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .legal-option strong {
+      font-size: 12px;
+      font-weight: 720;
+    }
+
+    .legal-option small {
+      margin-top: 2px;
+      color: var(--muted-2);
+      font-size: 10.5px;
+    }
+
+    .main {
+      position: relative;
+      min-width: 0;
+      height: 100vh;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 50% -10%, rgba(255,255,255,0.035), transparent 36%),
+        var(--bg);
+    }
+
+    .topbar {
+      position: absolute;
+      z-index: 15;
+      inset: 0 0 auto 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 62px;
+      padding: 0 20px;
+      background: color-mix(in srgb, var(--bg) 82%, transparent);
+      border-bottom: 1px solid transparent;
+      backdrop-filter: blur(18px);
+    }
+
+    .topbar-left,
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .mobile-menu {
+      display: inline-grid;
+    }
+
+    .model-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--panel) 82%, transparent);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 16%, transparent);
+    }
+
+    .content {
+      height: 100%;
+      overflow-y: auto;
+      padding: 86px max(24px, calc((100% - 860px) / 2)) 156px;
+      scroll-behavior: smooth;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+
+    .view {
+      display: none;
+      min-height: calc(100vh - 242px);
+      animation: fadeIn 180ms ease;
+    }
+
+    .view.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .welcome {
+      display: grid;
+      place-items: center;
+      min-height: calc(100vh - 280px);
+      text-align: center;
+    }
+
+    .welcome-inner {
+      width: min(700px, 100%);
+    }
+
+    .ai-orb {
+      position: relative;
+      display: grid;
+      place-items: center;
+      width: 68px;
+      height: 68px;
+      margin: 0 auto 24px;
+      border-radius: 22px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,0.98), rgba(205,210,215,0.78));
+      color: #141619;
+      box-shadow:
+        0 18px 50px rgba(0,0,0,0.2),
+        inset 0 1px 0 rgba(255,255,255,0.8);
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: -0.06em;
+    }
+
+    html[data-theme="light"] .ai-orb {
+      background: linear-gradient(145deg, #16181b, #3a3e43);
+      color: #fff;
+    }
+
+    .ai-orb::after {
+      content: "";
+      position: absolute;
+      inset: -9px;
+      z-index: -1;
+      border: 1px solid var(--border);
+      border-radius: 28px;
+    }
+
+    .welcome h1 {
+      margin: 0;
+      font-size: clamp(29px, 4vw, 44px);
+      line-height: 1.08;
+      letter-spacing: -0.045em;
+    }
+
+    .welcome p {
+      max-width: 560px;
+      margin: 14px auto 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 14.5px;
+    }
+
+    .suggestions {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 32px;
+    }
+
+    .suggestion {
+      padding: 15px 16px;
+      border: 1px solid var(--border);
+      border-radius: 15px;
+      background: color-mix(in srgb, var(--panel) 78%, transparent);
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+
+    .suggestion:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-strong);
+      background: var(--panel);
+    }
+
+    .suggestion strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 13.5px;
+    }
+
+    .suggestion span {
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    .messages {
+      width: min(820px, 100%);
+      margin: 0 auto;
+    }
+
+    .message {
+      display: grid;
+      grid-template-columns: 34px minmax(0, 1fr);
+      gap: 14px;
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .message-avatar {
+      display: grid;
+      place-items: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 10px;
+      background: var(--panel-2);
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .message.assistant .message-avatar {
+      background: var(--accent);
+      color: var(--accent-text);
+    }
+
+    .message-role {
+      margin-bottom: 7px;
+      font-size: 12px;
+      font-weight: 800;
+    }
+
+    .message-text {
+      color: var(--text);
+      font-size: 14.5px;
+      line-height: 1.72;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+
+    .typing {
+      display: inline-flex;
+      gap: 5px;
+      align-items: center;
+      height: 21px;
+    }
+
+    .typing i {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      animation: blink 1.1s infinite ease-in-out;
+    }
+
+    .typing i:nth-child(2) { animation-delay: 0.15s; }
+    .typing i:nth-child(3) { animation-delay: 0.3s; }
+
+    @keyframes blink {
+      0%, 80%, 100% { opacity: 0.3; transform: translateY(0); }
+      40% { opacity: 1; transform: translateY(-3px); }
+    }
+
+    .page-head {
+      width: min(900px, 100%);
+      margin: 0 auto 26px;
+    }
+
+    .page-head h2 {
+      margin: 0;
+      font-size: 29px;
+      letter-spacing: -0.035em;
+    }
+
+    .page-head p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      line-height: 1.6;
+      font-size: 14px;
+    }
+
+    .card-grid {
+      width: min(900px, 100%);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      min-height: 180px;
+      padding: 20px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--panel);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.03);
+    }
+
+    .card-icon {
+      display: grid;
+      place-items: center;
+      width: 40px;
+      height: 40px;
+      margin-bottom: 34px;
+      border-radius: 12px;
+      background: var(--panel-2);
+    }
+
+    .card h3 {
+      margin: 0 0 7px;
+      font-size: 15px;
+    }
+
+    .card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12.8px;
+      line-height: 1.55;
+    }
+
+    .plan-card {
+      width: min(640px, 100%);
+      margin: 18px auto 0;
+      padding: 26px;
+      border: 1px solid var(--border-strong);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .plan-card h3 {
+      margin: 0 0 6px;
+      font-size: 22px;
+    }
+
+    .plan-card .price {
+      margin: 18px 0;
+      font-size: 36px;
+      font-weight: 850;
+      letter-spacing: -0.04em;
+    }
+
+    .plan-card .price small {
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0;
+    }
+
+    .feature-list {
+      display: grid;
+      gap: 12px;
+      margin: 22px 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .feature-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 13.5px;
+    }
+
+    .check {
+      color: var(--success);
+      font-weight: 900;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .danger-button {
+      min-height: 42px;
+      padding: 0 16px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-weight: 750;
+      transition: transform 150ms ease, opacity 150ms ease;
+    }
+
+    .primary-button {
+      border: 1px solid var(--accent);
+      background: var(--accent);
+      color: var(--accent-text);
+    }
+
+    .secondary-button {
+      border: 1px solid var(--border-strong);
+      background: transparent;
+      color: var(--text);
+    }
+
+    .danger-button {
+      border: 1px solid color-mix(in srgb, var(--danger) 38%, transparent);
+      background: color-mix(in srgb, var(--danger) 8%, transparent);
+      color: var(--danger);
+    }
+
+    .primary-button:hover,
+    .secondary-button:hover,
+    .danger-button:hover {
+      opacity: 0.9;
+    }
+
+    .primary-button:active,
+    .secondary-button:active,
+    .danger-button:active {
+      transform: scale(0.98);
+    }
+
+    .settings-panel {
+      width: min(720px, 100%);
+      margin: 0 auto;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      overflow: hidden;
+      background: var(--panel);
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .setting-row:last-child {
+      border-bottom: 0;
+    }
+
+    .setting-copy h3 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    .setting-copy p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    .segmented {
+      display: inline-flex;
+      padding: 3px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--panel-2);
+    }
+
+    .segment {
+      min-width: 68px;
+      height: 32px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 750;
+    }
+
+    .segment.active {
+      background: var(--panel);
+      color: var(--text);
+      box-shadow: 0 1px 5px rgba(0,0,0,0.14);
+    }
+
+
+    .policy-shell {
+      width: min(940px, 100%);
+      margin: 0 auto;
+    }
+
+    .policy-toolbar {
+      position: sticky;
+      top: -24px;
+      z-index: 8;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 18px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: color-mix(in srgb, var(--bg) 88%, transparent);
+      backdrop-filter: blur(18px);
+    }
+
+    .policy-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .policy-tab {
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 10px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 11.5px;
+      font-weight: 760;
+      transition:
+        background 150ms ease,
+        border-color 150ms ease,
+        color 150ms ease;
+    }
+
+    .policy-tab:hover {
+      border-color: var(--border);
+      color: var(--text);
+    }
+
+    .policy-tab.active {
+      border-color: var(--border-strong);
+      background: var(--panel);
+      color: var(--text);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+    }
+
+    .policy-status {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      flex: 0 0 auto;
+      color: var(--muted);
+      font-size: 10.5px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .policy-status::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 0 4px color-mix(in srgb, var(--success) 13%, transparent);
+    }
+
+    .policy-document {
+      display: none;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 22px;
+      background: var(--panel);
+      box-shadow: 0 18px 55px rgba(0,0,0,0.12);
+    }
+
+    .policy-document.active {
+      display: block;
+      animation: fadeIn 180ms ease;
+    }
+
+    .policy-hero {
+      position: relative;
+      overflow: hidden;
+      padding: 34px 36px 30px;
+      border-bottom: 1px solid var(--border);
+      background:
+        radial-gradient(circle at 100% 0%, rgba(255,255,255,0.08), transparent 32%),
+        linear-gradient(135deg, var(--panel-2), var(--panel));
+    }
+
+    .policy-kicker {
+      display: inline-flex;
+      align-items: center;
+      min-height: 27px;
+      padding: 0 10px;
+      border: 1px solid var(--border-strong);
+      border-radius: 999px;
+      color: var(--muted);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .policy-hero h2 {
+      max-width: 720px;
+      margin: 18px 0 10px;
+      font-size: clamp(28px, 4vw, 42px);
+      line-height: 1.08;
+      letter-spacing: -0.045em;
+    }
+
+    .policy-hero p {
+      max-width: 720px;
+      margin: 0;
+      color: var(--muted);
+      font-size: 13.5px;
+      line-height: 1.7;
+    }
+
+    .policy-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 18px;
+      margin-top: 20px;
+      color: var(--muted-2);
+      font-size: 11px;
+      font-weight: 650;
+    }
+
+    .policy-body {
+      padding: 12px 36px 38px;
+    }
+
+    .policy-notice {
+      margin: 18px 0 8px;
+      padding: 15px 16px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--panel-2);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.65;
+    }
+
+    .policy-section {
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .policy-section:last-child {
+      border-bottom: 0;
+    }
+
+    .policy-section h3 {
+      margin: 0 0 10px;
+      font-size: 16px;
+      line-height: 1.35;
+      letter-spacing: -0.015em;
+    }
+
+    .policy-section p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13.4px;
+      line-height: 1.82;
+      text-align: left;
+    }
+
+    @media (max-width: 700px) {
+      .policy-toolbar {
+        position: static;
+        align-items: stretch;
+        flex-direction: column;
+      }
+
+      .policy-tabs {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+
+      .policy-status {
+        padding: 3px 4px;
+      }
+
+      .policy-hero {
+        padding: 26px 22px 24px;
+      }
+
+      .policy-body {
+        padding: 8px 22px 28px;
+      }
+
+      .policy-section p {
+        font-size: 13px;
+        line-height: 1.75;
+      }
+    }
+
+    .composer-wrap {
+      position: absolute;
+      z-index: 18;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 22px max(24px, calc((100% - 820px) / 2)) 18px;
+      background: linear-gradient(to top, var(--bg) 58%, color-mix(in srgb, var(--bg) 92%, transparent), transparent);
+      pointer-events: none;
+    }
+
+    .composer {
+      position: relative;
+      width: min(820px, 100%);
+      margin: 0 auto;
+      padding: 8px 9px 8px 16px;
+      border: 1px solid var(--border-strong);
+      border-radius: 24px;
+      background: var(--input);
+      box-shadow: 0 14px 45px rgba(0,0,0,0.18);
+      pointer-events: auto;
+    }
+
+    .composer.subscription-locked {
+      min-height: 68px;
+      cursor: pointer;
+      overflow: hidden;
+    }
+
+    .composer.subscription-locked .composer-row,
+    .composer.subscription-locked .attachment-preview {
+      opacity: 0.18;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    .composer-lock-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      width: 100%;
+      min-height: 66px;
+      padding: 10px 18px;
+      border: 0;
+      border-radius: inherit;
+      background: color-mix(in srgb, var(--input) 90%, transparent);
+      color: var(--text);
+      cursor: pointer;
+      text-align: left;
+      backdrop-filter: blur(8px);
+    }
+
+    .composer-lock-overlay[hidden] {
+      display: none;
+    }
+
+    .composer-lock-icon {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      background: var(--panel-2);
+      color: var(--text);
+      box-shadow: 0 8px 22px rgba(0,0,0,0.14);
+    }
+
+    .composer-lock-icon svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    .composer-lock-copy {
+      min-width: 0;
+    }
+
+    .composer-lock-copy strong,
+    .composer-lock-copy small {
+      display: block;
+    }
+
+    .composer-lock-copy strong {
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .composer-lock-copy small {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.35;
+    }
+
+    .composer-row {
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+    }
+
+    .attach-button {
+      flex: 0 0 auto;
+      margin-bottom: 2px;
+    }
+
+    .attach-button.active {
+      background: var(--sidebar-hover);
+    }
+
+    .attach-menu {
+      position: absolute;
+      left: 10px;
+      bottom: calc(100% + 10px);
+      z-index: 30;
+      display: none;
+      width: 224px;
+      padding: 7px;
+      border: 1px solid var(--border-strong);
+      border-radius: 15px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .attach-menu.open {
+      display: grid;
+      gap: 4px;
+      animation: attachMenuIn 150ms ease;
+    }
+
+    @keyframes attachMenuIn {
+      from { opacity: 0; transform: translateY(7px) scale(0.98); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .attach-option {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 38px minmax(0, 1fr);
+      align-items: center;
+      gap: 10px;
+      padding: 9px;
+      border: 0;
+      border-radius: 11px;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+      transition: background 150ms ease;
+    }
+
+    .attach-option:hover,
+    .attach-option:focus-visible {
+      outline: 0;
+      background: var(--panel-2);
+    }
+
+    .attach-option-icon {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--panel-2);
+      color: var(--muted);
+    }
+
+    .attach-option-icon svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    .attach-option strong,
+    .attach-option small {
+      display: block;
+    }
+
+    .attach-option strong {
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .attach-option small {
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 10.5px;
+      line-height: 1.35;
+    }
+
+    .attachment-preview {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      padding: 7px 0 2px 42px;
+    }
+
+    .attachment-preview[hidden] {
+      display: none;
+    }
+
+    .attachment-chip {
+      display: inline-flex;
+      align-items: center;
+      min-width: 0;
+      max-width: 250px;
+      gap: 8px;
+      min-height: 34px;
+      padding: 5px 6px 5px 9px;
+      border: 1px solid var(--border);
+      border-radius: 11px;
+      background: var(--panel-2);
+    }
+
+    .attachment-chip-icon {
+      display: grid;
+      place-items: center;
+      width: 23px;
+      height: 23px;
+      flex: 0 0 auto;
+      border-radius: 7px;
+      background: var(--panel);
+      color: var(--muted);
+      font-size: 9px;
+      font-weight: 850;
+    }
+
+    .attachment-chip-copy {
+      min-width: 0;
+      flex: 1;
+    }
+
+    .attachment-chip-name,
+    .attachment-chip-size {
+      display: block;
+      overflow: hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .attachment-chip-name {
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+
+    .attachment-chip-size {
+      margin-top: 1px;
+      color: var(--muted-2);
+      font-size: 9.5px;
+    }
+
+    .attachment-remove {
+      display: grid;
+      place-items: center;
+      width: 24px;
+      height: 24px;
+      flex: 0 0 auto;
+      padding: 0;
+      border: 0;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .attachment-remove:hover {
+      background: var(--panel);
+      color: var(--text);
+    }
+
+    .file-input-hidden {
+      position: fixed;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    #promptInput {
+      width: 100%;
+      min-height: 42px;
+      max-height: 160px;
+      padding: 10px 0 8px;
+      resize: none;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      line-height: 1.5;
+      overflow-y: auto;
+    }
+
+    #promptInput::placeholder {
+      color: var(--muted-2);
+    }
+
+    .send-button {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      flex: 0 0 auto;
+      margin-bottom: 2px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: var(--accent);
+      color: var(--accent-text);
+      cursor: pointer;
+      transition: transform 150ms ease, opacity 150ms ease;
+    }
+
+    .send-button:disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+
+    .send-button:not(:disabled):active {
+      transform: scale(0.94);
+    }
+
+    .composer-meta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 9px;
+      color: var(--muted-2);
+      font-size: 10.5px;
+      pointer-events: auto;
+    }
+
+    .modal-backdrop,
+    .mobile-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 70;
+      display: none;
+      background: rgba(0,0,0,0.58);
+      backdrop-filter: blur(6px);
+    }
+
+    .modal-backdrop.open,
+    .mobile-backdrop.open {
+      display: block;
+    }
+
+    .mobile-backdrop {
+      z-index: 35;
+    }
+
+    .modal {
+      position: absolute;
+      top: 12vh;
+      left: 50%;
+      width: min(620px, calc(100vw - 30px));
+      max-height: 72vh;
+      overflow: hidden;
+      transform: translateX(-50%);
+      border: 1px solid var(--border-strong);
+      border-radius: 20px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+
+    .modal-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 15px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .modal-search {
+      width: 100%;
+      height: 42px;
+      padding: 0 14px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      outline: 0;
+      background: var(--panel-2);
+      color: var(--text);
+    }
+
+    .modal-results {
+      max-height: calc(72vh - 74px);
+      overflow-y: auto;
+      padding: 9px;
+    }
+
+    .search-result {
+      width: 100%;
+      padding: 13px;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      color: var(--text);
+      text-align: left;
+      cursor: pointer;
+    }
+
+    .search-result:hover {
+      background: var(--panel-2);
+    }
+
+    .search-result strong {
+      display: block;
+      margin-bottom: 5px;
+      font-size: 13.5px;
+    }
+
+    .search-result span {
+      display: block;
+      overflow: hidden;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+    }
+
+    .toast {
+      position: fixed;
+      z-index: 100;
+      left: 50%;
+      bottom: 118px;
+      max-width: min(420px, calc(100vw - 30px));
+      padding: 11px 15px;
+      border: 1px solid var(--border-strong);
+      border-radius: 12px;
+      background: var(--panel);
+      color: var(--text);
+      box-shadow: var(--shadow);
+      opacity: 0;
+      transform: translate(-50%, 12px);
+      pointer-events: none;
+      transition: opacity 180ms ease, transform 180ms ease;
+      font-size: 12.5px;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translate(-50%, 0);
+    }
+
+    @media (max-width: 900px) {
+      .app {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: min(290px, 86vw);
+        transform: translateX(-105%);
+        box-shadow: var(--shadow);
+      }
+
+      .sidebar.open {
+        transform: translateX(0);
+      }
+
+      .mobile-menu {
+        display: inline-grid;
+      }
+
+      .content {
+        padding-left: 20px;
+        padding-right: 20px;
+      }
+
+      .composer-wrap {
+        padding-left: 16px;
+        padding-right: 16px;
+      }
+
+      .card-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .topbar {
+        padding: 0 12px;
+      }
+
+      .model-pill {
+        display: none;
+      }
+
+      .content {
+        padding-top: 78px;
+        padding-bottom: 142px;
+      }
+
+      .welcome {
+        min-height: calc(100vh - 250px);
+      }
+
+      .welcome h1 {
+        font-size: 31px;
+      }
+
+      .suggestions {
+        grid-template-columns: 1fr;
+      }
+
+      .suggestion:nth-child(n+3) {
+        display: none;
+      }
+
+      .message {
+        grid-template-columns: 30px minmax(0, 1fr);
+        gap: 11px;
+      }
+
+      .setting-row {
+        align-items: flex-start;
+        flex-direction: column;
+      }
+
+      .composer {
+        border-radius: 20px;
+      }
+
+      .composer-lock-overlay {
+        justify-content: flex-start;
+        padding-left: 14px;
+        padding-right: 14px;
+      }
+
+      .composer-lock-copy small {
+        max-width: 220px;
+      }
+
+      .attach-menu {
+        left: 4px;
+        width: min(224px, calc(100vw - 48px));
+      }
+
+      .attachment-preview {
+        padding-left: 0;
+      }
+
+      .attachment-chip {
+        max-width: 100%;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app" id="app">
+    <aside class="sidebar" id="sidebar" aria-label="AJYUS navigation">
+      <div class="brand-row">
+        <a class="brand" href="#" id="brandHome" aria-label="AJYUS home">
+          <span class="brand-mark">A</span>
+          <span>AJYUS</span>
+        </a>
+      </div>
+
+      <nav class="nav" aria-label="Main menu">
+        <button class="nav-button active" data-view="chat" id="newChatButton" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+            <path d="M12 20h9"></path>
+            <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L8 18l-4 1 1-4Z"></path>
+          </svg>
+          <span>New chat</span>
+        </button>
+
+        <button class="nav-button" id="searchChatsButton" type="button">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+            <circle cx="11" cy="11" r="7"></circle>
+            <path d="m20 20-3.6-3.6"></path>
+          </svg>
+          <span>Search chats</span>
+        </button>
+
+        <a class="nav-button" href="image.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+            <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+            <circle cx="8.5" cy="9" r="1.5"></circle>
+            <path d="m4.5 17 4.2-4.2a2 2 0 0 1 2.8 0l1.8 1.8 1.2-1.2a2 2 0 0 1 2.8 0l2.2 2.2"></path>
+          </svg>
+          <span>Images</span>
+        </a>
+
+        <a class="nav-button" href="subscription.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+            <path d="M12 3 4 7v5c0 5 3.4 8.7 8 10 4.6-1.3 8-5 8-10V7Z"></path>
+            <path d="m9.5 12 1.7 1.7 3.8-4"></path>
+          </svg>
+          <span>Subscription</span>
+        </a>
+
+       <a class="nav-button" href="setting.html">
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+    <circle cx="12" cy="12" r="3"></circle>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.4 1.08V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.08-.4H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .4-1.08V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.35.38.65.69.87.31.22.68.34 1.06.34H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z"></path>
+  </svg>
+  <span>Settings</span>
+</a>
+      </nav>
+
+      <section class="recents" aria-label="Recent chats">
+        <div class="section-label">Recents</div>
+        <div class="history-list" id="historyList"></div>
+      </section>
+
+      <div class="sidebar-footer" id="sidebarFooter">
+        <div class="legal-menu" id="legalMenu" aria-label="Legal policies">
+          <button class="legal-option" type="button" data-policy="terms">
+            <span class="legal-option-icon">01</span>
+            <span>
+              <strong>Terms &amp; Conditions</strong>
+              <small>Rules for using AJYUS</small>
+            </span>
+          </button>
+
+          <button class="legal-option" type="button" data-policy="privacy">
+            <span class="legal-option-icon">02</span>
+            <span>
+              <strong>Privacy Policy</strong>
+              <small>How information is handled</small>
+            </span>
+          </button>
+
+          <button class="legal-option" type="button" data-policy="refund">
+            <span class="legal-option-icon">03</span>
+            <span>
+              <strong>Refund Policy</strong>
+              <small>No-refund billing terms</small>
+            </span>
+          </button>
+        </div>
+
+        <button
+          class="legal-menu-toggle"
+          id="legalMenuToggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="legalMenu"
+        >
+          <span class="legal-shield" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 3 5 6v5c0 4.8 2.8 8.3 7 10 4.2-1.7 7-5.2 7-10V6Z"></path>
+              <path d="m9.5 12 1.6 1.6 3.7-4"></path>
+            </svg>
+          </span>
+          <span class="legal-toggle-copy">
+            <strong>Legal &amp; Policies</strong>
+            <small>Terms, privacy and refunds</small>
+          </span>
+          <svg class="legal-chevron" id="legalMenuArrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+            <path d="m7 14 5-5 5 5"></path>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div class="topbar-left">
+          <button class="icon-button mobile-menu" id="openSidebar" aria-label="Open sidebar">
+            <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9">
+              <path d="M4 7h16M4 12h16M4 17h16"></path>
+            </svg>
+          </button>
+        </div>
+
+        <div class="topbar-right">
+          <button class="icon-button" id="quickTheme" aria-label="Toggle theme" title="Toggle theme">
+            <svg id="themeIconMoon" viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+              <path d="M21 12.8A8.5 8.5 0 1 1 11.2 3 6.8 6.8 0 0 0 21 12.8Z"></path>
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="content" id="content">
+        <section class="view active" id="chatView">
+          <div class="welcome" id="welcomeState">
+            <div class="welcome-inner">
+              <div class="ai-orb">A</div>
+              <h1>How can AJYUS help?</h1>
+              <p>
+                Ask questions, develop ideas, plan projects, write content or explore anything.
+                Your recent conversations will automatically appear in the sidebar.
+              </p>
+
+              <div class="suggestions">
+                <button class="suggestion" data-prompt="Create a professional business plan for my AI startup">
+                  <strong>Build a business plan</strong>
+                  <span>Turn an idea into a clear execution roadmap.</span>
+                </button>
+                <button class="suggestion" data-prompt="Help me design a modern AI website">
+                  <strong>Design an AI website</strong>
+                  <span>Plan pages, features and a premium interface.</span>
+                </button>
+                <button class="suggestion" data-prompt="Explain APIs in simple Hindi">
+                  <strong>Understand APIs</strong>
+                  <span>Learn technical topics in simple language.</span>
+                </button>
+                <button class="suggestion" data-prompt="Give me five unique AI startup ideas">
+                  <strong>Explore new ideas</strong>
+                  <span>Discover practical opportunities and concepts.</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="messages" id="messages" hidden></div>
+        </section>
+
+        <section class="view" id="subscriptionView">
+          <div class="page-head">
+            <h2>Subscription</h2>
+            <p>Choose a plan that fits your usage. Payment integration can be added later.</p>
+          </div>
+
+          <article class="plan-card">
+            <h3>AJYUS Pro</h3>
+            <p style="margin:0;color:var(--muted);font-size:13px;">More intelligence, higher limits and premium tools.</p>
+            <div class="price">₹999 <small>/ month</small></div>
+
+            <ul class="feature-list">
+              <li><span class="check">✓</span> Higher chat usage limits</li>
+              <li><span class="check">✓</span> Image generation access</li>
+              <li><span class="check">✓</span> Faster AI responses</li>
+              <li><span class="check">✓</span> Priority access to new features</li>
+            </ul>
+
+            <button class="primary-button" id="upgradeButton" style="width:100%;">Upgrade to Pro</button>
+          </article>
+        </section>
+
+        <section class="view" id="settingsView">
+          <div class="page-head">
+            <h2>Settings</h2>
+            <p>Personalize AJYUS and control your locally stored conversation history.</p>
+          </div>
+
+          <div class="settings-panel">
+            <div class="setting-row">
+              <div class="setting-copy">
+                <h3>Appearance</h3>
+                <p>Choose a complete dark or light interface.</p>
+              </div>
+              <div class="segmented" aria-label="Theme selector">
+                <button class="segment" data-theme-choice="light">Light</button>
+                <button class="segment" data-theme-choice="dark">Dark</button>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-copy">
+                <h3>Chat history</h3>
+                <p>Chats are currently saved only in this browser.</p>
+              </div>
+              <button class="danger-button" id="clearHistoryButton">Clear history</button>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-copy">
+                <h3>Language</h3>
+                <p>AJYUS can support English, Hindi and Hinglish.</p>
+              </div>
+              <button class="secondary-button">English + Hindi</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="view" id="legalView">
+          <div class="policy-shell">
+            <div class="policy-toolbar" aria-label="Policy navigation">
+              <div class="policy-tabs">
+                <button class="policy-tab active" type="button" data-policy="terms">Terms &amp; Conditions</button>
+                <button class="policy-tab" type="button" data-policy="privacy">Privacy Policy</button>
+                <button class="policy-tab" type="button" data-policy="refund">Refund Policy</button>
+              </div>
+              <span class="policy-status">AJYUS legal documents</span>
+            </div>
+
+            <article class="policy-document active" data-policy-panel="terms">
+              <header class="policy-hero">
+                <span class="policy-kicker">AJYUS Legal</span>
+                <h2>Terms &amp; Conditions</h2>
+                <p>
+                  These terms explain the rules, responsibilities, permitted uses and limitations
+                  that apply when a person accesses or uses AJYUS.
+                </p>
+                <div class="policy-meta">
+                  <span>Last updated: 5 July 2026</span>
+                  <span>Effective immediately</span>
+                  <span>Approximately 1,673 words</span>
+                </div>
+              </header>
+
+              <div class="policy-body">
+                <div class="policy-notice">
+                  Please read this document carefully before using AJYUS. Continuing to use the
+                  service means that you accept these Terms, subject to rights that cannot legally
+                  be excluded.
+                </div>
+
+              <section class="policy-section">
+                <h3>1. Acceptance of these Terms</h3>
+                <p>These Terms and Conditions govern your access to and use of the AJYUS website, applications, artificial intelligence features, subscription services, and any related tools, interfaces, content, or services made available under the AJYUS name. By visiting, creating an account, submitting a prompt, purchasing a plan, or otherwise using AJYUS, you confirm that you have read, understood, and agreed to be bound by these Terms. If you do not agree, you must not access or use the service. These Terms form a legally binding agreement between you and the operator of AJYUS. Any additional terms shown during checkout, account creation, feature activation, or a promotional offer will also apply to the relevant feature and will be treated as part of this agreement.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>2. Eligibility and account responsibility</h3>
+                <p>You must be legally capable of entering into a binding agreement in the place where you live. If you are below the age at which you can legally consent to online services, a parent or lawful guardian must review and accept these Terms on your behalf. You are responsible for providing accurate information, maintaining the confidentiality of login credentials, and preventing unauthorized access to your device or account. Activity carried out through your account will be treated as your activity unless you promptly notify AJYUS of suspected misuse. You may not sell, transfer, rent, or share account access in a way that defeats plan limits, security controls, or applicable law.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>3. Description of the service</h3>
+                <p>AJYUS provides an artificial intelligence interface that may help users ask questions, create text, develop ideas, plan projects, analyse information, and access other supported tools. Features, models, limits, response speed, supported languages, and availability may differ by plan, region, device, or development stage. Some functions may be experimental, incomplete, or offered as a preview. AJYUS may add, modify, suspend, or discontinue a feature when reasonably necessary for improvement, security, legal compliance, infrastructure management, or business reasons. The service is not guaranteed to remain identical to any demonstration, screenshot, advertisement, or earlier version.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>4. AI output and user verification</h3>
+                <p>Artificial intelligence can produce incorrect, incomplete, outdated, biased, or misleading output. AJYUS does not guarantee that any response is accurate, original, lawful, suitable, or fit for a particular purpose. You must independently review and verify important information before relying on it. AJYUS is not a substitute for qualified medical, legal, financial, tax, engineering, safety, or other professional advice. You must not use AI output as the sole basis for high-impact decisions concerning health, employment, credit, education, housing, legal rights, financial transactions, public safety, or another person’s rights. You remain responsible for how you interpret, edit, publish, or act upon generated content.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>5. Acceptable use</h3>
+                <p>You may use AJYUS only for lawful and responsible purposes. You must not use the service to violate law, infringe intellectual property, deceive or defraud others, distribute malware, obtain unauthorized access, interfere with systems, evade security controls, exploit children, facilitate violence, create non-consensual intimate content, harass individuals, impersonate others, manipulate elections unlawfully, or generate content intended to cause serious harm. You must not scrape, reverse engineer, benchmark for competitive replication, resell access without permission, automate excessive requests, bypass usage limits, or use the service in a manner that imposes an unreasonable load. AJYUS may investigate suspected abuse and restrict access where reasonably necessary.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>6. Your prompts, files, and content</h3>
+                <p>You retain any rights you lawfully hold in prompts, files, instructions, and other material you submit. You confirm that you have all permissions required to provide that material and that it does not unlawfully violate another person’s privacy, confidentiality, contractual rights, or intellectual property. You grant AJYUS a limited, non-exclusive right to host, transmit, process, reproduce, and technically modify submitted content only as reasonably required to operate, secure, improve, and provide the service, subject to the Privacy Policy and your available settings. You are responsible for removing confidential, regulated, or highly sensitive information that should not be shared with an AI service.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>7. Generated content and intellectual property</h3>
+                <p>Subject to applicable law, plan terms, and third-party rights, AJYUS does not claim ownership of the original output generated specifically in response to your prompt. However, AI systems may create similar output for different users, and generated content may not qualify for intellectual property protection. You receive no exclusive right over common ideas, formats, facts, or independently generated material. AJYUS names, logos, interface designs, software, code, documentation, and service branding remain owned by AJYUS or its licensors. You may not copy or use those protected elements except as expressly permitted in writing.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>8. Subscriptions, billing, and taxes</h3>
+                <p>Paid plans may provide higher limits, faster access, premium models, or additional features. Prices, billing periods, renewal terms, and included benefits will be shown before purchase. Unless stated otherwise, subscriptions renew automatically for the selected billing period until cancelled. You authorize the payment processor to charge the displayed amount, applicable taxes, and permitted fees using your chosen payment method. You are responsible for maintaining valid payment details. Plan benefits may be subject to fair-use limits and technical safeguards. Purchases are governed by the separate Refund Policy, including the stated no-refund rule except where a refund is required by law or a specifically described billing exception applies.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>9. Availability, maintenance, and changes</h3>
+                <p>AJYUS aims to provide a reliable service but does not promise uninterrupted or error-free availability. Access may be affected by maintenance, upgrades, internet failures, third-party model providers, payment systems, hosting services, security incidents, capacity limits, force majeure events, or other circumstances beyond reasonable control. AJYUS may temporarily restrict traffic, queue requests, or change limits to protect users and infrastructure. Where practical, material changes will be communicated through the service or website, but emergency changes may be made without advance notice.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>10. Third-party services and links</h3>
+                <p>AJYUS may rely on or connect with third-party artificial intelligence providers, cloud hosting services, analytics tools, authentication systems, payment processors, communication services, or external websites. Those third parties operate under their own terms and privacy practices. AJYUS is not responsible for the availability, security, accuracy, or conduct of an independent third-party service. A link or integration does not mean AJYUS endorses every statement, product, or practice of that third party. You should review applicable third-party terms before enabling an integration or submitting information through it.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>11. Privacy and security</h3>
+                <p>Use of personal information is described in the AJYUS Privacy Policy. You acknowledge that no online service can guarantee absolute security. You are responsible for using secure devices, protecting credentials, and avoiding the submission of information that is unnecessary for your request. AJYUS may use reasonable technical and organizational safeguards, investigate suspected security events, and take steps to protect accounts, users, and infrastructure. You must promptly report any suspected vulnerability through the official contact channel and must not publicly exploit or disclose a vulnerability in a way that creates avoidable risk.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>12. Suspension and termination</h3>
+                <p>AJYUS may suspend, restrict, or terminate access when it reasonably believes that you have violated these Terms, created security or legal risk, failed to pay valid charges, abused service limits, or used the platform in a harmful manner. AJYUS may also discontinue an account or service for operational reasons, subject to applicable law. You may stop using AJYUS at any time and may cancel a recurring plan through the available account or billing controls. Termination does not cancel obligations that arose before termination, including outstanding payment obligations, ownership provisions, disclaimers, limitations of liability, and dispute terms.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>13. Disclaimers</h3>
+                <p>To the maximum extent permitted by applicable law, AJYUS is provided on an “as is” and “as available” basis. AJYUS disclaims implied warranties of merchantability, fitness for a particular purpose, non-infringement, accuracy, uninterrupted operation, and compatibility. No oral statement, generated response, marketing material, or support communication creates a warranty unless expressly stated in a written agreement signed by an authorized representative. Some jurisdictions do not allow particular exclusions, so certain disclaimers may not apply to you.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>14. Limitation of liability</h3>
+                <p>To the maximum extent permitted by law, AJYUS and its owners, employees, contractors, affiliates, and service providers will not be liable for indirect, incidental, special, exemplary, punitive, or consequential losses, including lost profits, lost data, lost business opportunities, reputational damage, or losses arising from reliance on AI output. Where liability cannot lawfully be excluded, the total aggregate liability arising from the service will be limited to the amount you paid to AJYUS for the affected service during the three months immediately before the event giving rise to the claim, or the minimum amount required by law, whichever is greater.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>15. Indemnity</h3>
+                <p>To the extent permitted by law, you agree to defend, indemnify, and hold harmless AJYUS and its personnel from third-party claims, liabilities, damages, losses, and reasonable costs arising from your unlawful use of the service, your submitted content, your violation of these Terms, or your infringement of another person’s rights. This obligation does not apply to the extent that a claim was caused by AJYUS’s own unlawful conduct.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>16. Governing rules and disputes</h3>
+                <p>These Terms are governed by the laws applicable to the operator of AJYUS, without giving effect to conflict-of-law principles, except where mandatory consumer law in your place of residence provides otherwise. Before starting formal proceedings, you agree to send a written description of the dispute and allow a reasonable opportunity for informal resolution. Any court or tribunal will have the authority provided by applicable law. Nothing in these Terms removes a non-waivable consumer right or prevents either party from seeking urgent relief for misuse, security threats, or intellectual property infringement.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>17. Changes and contact</h3>
+                <p>AJYUS may update these Terms to reflect new features, legal requirements, security needs, or business changes. The updated date will be displayed with the policy. Material changes may be communicated through the website, application, or account notice. Continued use after the effective date means you accept the revised Terms, unless law requires a different form of consent. Questions, notices, or complaints should be submitted through the official contact details displayed on the AJYUS website or application. Keep a copy of these Terms for your records.</p>
+              </section>
+              </div>
+            </article>
+
+            <article class="policy-document" data-policy-panel="privacy">
+              <header class="policy-hero">
+                <span class="policy-kicker">AJYUS Privacy</span>
+                <h2>Privacy Policy</h2>
+                <p>
+                  This policy describes the categories of information AJYUS may handle, why that
+                  information is used, how it may be shared and the choices available to users.
+                </p>
+                <div class="policy-meta">
+                  <span>Last updated: 5 July 2026</span>
+                  <span>Applies to AJYUS services</span>
+                  <span>Approximately 1,796 words</span>
+                </div>
+              </header>
+
+              <div class="policy-body">
+                <div class="policy-notice">
+                  Do not place passwords, one-time codes, complete payment credentials, confidential
+                  records or unnecessary sensitive personal information inside an AI prompt.
+                </div>
+
+              <section class="policy-section">
+                <h3>1. Scope of this Privacy Policy</h3>
+                <p>This Privacy Policy explains how AJYUS may collect, use, store, disclose, and protect information when you access the AJYUS website, chat interface, subscription features, account functions, or related services. It applies to information handled directly by AJYUS through the service. It does not control the independent practices of third-party websites, payment processors, model providers, or integrations that operate under their own privacy notices. By using AJYUS, you acknowledge the practices described here. Where consent is required by law, AJYUS will request it through an appropriate notice or control. If you do not agree with this Policy, you should not submit personal information or continue using features that require such processing.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>2. Who is responsible for your information</h3>
+                <p>The operator identified through the official AJYUS website or application is responsible for deciding how personal information is processed for the purposes described in this Policy. During development or deployment, different technical providers may process information on AJYUS’s behalf. The identity and contact details of the operating entity should be displayed in the website’s legal, contact, checkout, or account information before the service is offered commercially. Questions about privacy should be sent through the official contact channel shown in the service. Users should avoid sending sensitive information to unofficial social-media accounts, unknown telephone numbers, or addresses that cannot be verified as belonging to AJYUS.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>3. Information you provide</h3>
+                <p>AJYUS may receive information that you choose to provide, including your name, email address, telephone number, account credentials, profile details, support messages, survey responses, billing details, subscription selection, prompts, chat messages, files, feedback, and any other content submitted through the interface. The exact information collected depends on the features you use. Payment-card, bank, wallet, or transaction information may be collected directly by an authorized payment processor rather than stored by AJYUS. You should submit only information that is relevant and that you are permitted to share. Do not include passwords, one-time codes, full financial credentials, government identification, private medical records, confidential business data, or another person’s personal information unless the feature expressly requires it and appropriate safeguards are available.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>4. Chat content and AI processing</h3>
+                <p>When you submit a prompt, the text and any supported attachment may be transmitted to the AJYUS backend and, where configured, to an external artificial intelligence model provider so that a response can be generated. The provider may process the content under a contract, platform setting, and privacy terms applicable to the deployed service. Chat content can reveal personal or sensitive information even when you do not provide a name. You should therefore review every prompt before sending it. AJYUS may process chat content to provide responses, maintain conversation history, detect misuse, troubleshoot errors, improve reliability, and support user requests. Whether content is used to improve an external model depends on the provider and the settings selected by AJYUS.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>5. Information collected automatically</h3>
+                <p>When you use the service, AJYUS or its technical providers may automatically receive limited technical and usage information. This can include internet protocol address, browser type, operating system, device type, language, approximate location derived from network information, referring page, timestamps, feature interactions, error logs, request identifiers, session information, and security signals. This information helps operate the service, diagnose failures, measure performance, prevent abuse, understand general usage patterns, and maintain compatibility. AJYUS should not use precise location, contacts, microphone, camera, or device files unless a feature clearly requests access and you grant permission through your device or browser.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>6. Browser storage, cookies, and similar technology</h3>
+                <p>The current AJYUS interface may use browser storage to remember settings such as theme preference and to keep chat history on the user’s device. Information stored locally remains in that browser until it is cleared by the user, removed by the browser, or changed by the application. Deleting browser data may permanently remove locally saved conversations. AJYUS may also use cookies or similar technologies for authentication, security, preferences, analytics, and service operation. Where legally required, non-essential cookies will be used only after consent. You can control cookies through browser settings, but disabling essential storage may prevent certain features from functioning correctly.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>7. How AJYUS uses information</h3>
+                <p>AJYUS may use information to create and manage accounts, provide chat responses, remember settings, process subscriptions, verify transactions, respond to support requests, send service communications, enforce plan limits, secure accounts, detect fraud or misuse, maintain logs, analyse performance, develop features, comply with legal obligations, and protect the rights and safety of users and the public. AJYUS may use aggregated or de-identified information for analytics, planning, and product improvement when the information no longer reasonably identifies an individual. AJYUS will not use personal information for an unrelated purpose without an appropriate legal basis, notice, or consent where required.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>8. Legal grounds for processing</h3>
+                <p>Depending on the law that applies, AJYUS may process personal information because it is necessary to provide a requested service or perform a contract, because you have given consent, because processing is required to meet a legal obligation, or because AJYUS has a legitimate interest that is not overridden by your rights. Legitimate interests may include securing the platform, preventing abuse, improving reliability, communicating about essential service changes, and defending legal claims. Where processing is based on consent, you may withdraw consent for future processing, although withdrawal does not make earlier lawful processing invalid and may prevent continued use of a feature.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>9. How information may be shared</h3>
+                <p>AJYUS may share information with carefully selected service providers that perform functions such as cloud hosting, AI inference, database management, authentication, analytics, customer support, email delivery, cybersecurity, payment processing, and professional advice. Providers should receive only the information reasonably necessary for their role and should be required to protect it under applicable agreements. Information may also be disclosed when required by a valid legal process, to investigate fraud or security incidents, to protect users or the public, or in connection with a merger, financing, acquisition, reorganization, or sale of assets. AJYUS does not sell personal information for money. If a law defines certain advertising or analytics disclosures as a “sale” or “sharing,” AJYUS will provide any required notice and choice.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>10. Payment information</h3>
+                <p>Subscription payments may be handled by a third-party payment gateway. The payment provider may collect your name, billing address, payment credentials, transaction identifiers, authentication data, tax information, and fraud signals. AJYUS may receive confirmation of payment, plan, amount, currency, status, and limited billing details, but should not receive or store complete card credentials unless specifically disclosed and secured. Payment providers are independently responsible for some processing and may be required to retain transaction records under financial or legal obligations. You should review the payment provider’s privacy notice before completing a purchase.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>11. Data retention</h3>
+                <p>AJYUS retains information only for as long as reasonably necessary for the purpose for which it was collected, including providing the service, maintaining security, resolving disputes, enforcing agreements, meeting accounting requirements, and complying with law. Different categories may have different retention periods. Locally stored chat history may remain in your browser until you clear it. Server logs may be kept for a limited operational or security period. Billing records may need to be retained longer. When information is no longer required, AJYUS may delete it, anonymize it, or securely isolate it until deletion is technically feasible. Backup copies may persist temporarily under normal backup cycles.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>12. Security</h3>
+                <p>AJYUS should use reasonable administrative, technical, and organizational measures appropriate to the nature of the service and information processed. Measures may include access controls, secure development practices, encrypted transport, credential protection, monitoring, backups, vendor review, and incident response procedures. However, no website, transmission, storage system, or AI provider can guarantee absolute security. You are responsible for choosing a strong password where accounts are enabled, protecting your device, logging out from shared systems, and reporting suspicious activity. AJYUS will take appropriate action if it becomes aware of a personal-data breach and will provide notices when required by applicable law.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>13. International processing</h3>
+                <p>AJYUS and its service providers may operate infrastructure in more than one country. As a result, information may be processed outside the country where you live. Privacy laws in another location may differ from local law. Where required, AJYUS will use an appropriate transfer mechanism or contractual safeguard and will assess relevant risks. By using features that depend on global cloud or AI providers, you understand that cross-border technical processing may be necessary to deliver the service. Mandatory rights available under your local law remain unaffected.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>14. Your privacy choices and rights</h3>
+                <p>Depending on applicable law, you may have rights to request access to personal information, correction of inaccurate information, deletion, restriction, portability, objection to certain processing, or withdrawal of consent. You may also have the right to complain to a competent privacy authority. AJYUS may need to verify your identity before completing a request and may refuse or limit a request where permitted by law, such as when information must be retained for legal obligations, security, fraud prevention, or the rights of others. Browser-based history can be deleted through the available clear-history control or browser settings. Requests should be sent through the official AJYUS contact channel.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>15. Children’s privacy</h3>
+                <p>AJYUS is not intended to collect personal information from children who cannot lawfully consent to the service without a parent or guardian. Parents and guardians should supervise a child’s use and ensure that personal or sensitive information is not submitted through prompts. If AJYUS learns that information was collected from a child without required authorization, it will take reasonable steps to delete or restrict that information, subject to legal and technical limitations. A parent or guardian may contact AJYUS through the official channel to raise a concern.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>16. Communications and marketing</h3>
+                <p>AJYUS may send transactional messages about account access, security, purchases, plan changes, policy updates, support requests, and service operation. These messages are necessary to manage the service and may not include an opt-out where they are strictly operational. Promotional messages will be sent only where permitted. You may unsubscribe using the link or setting provided, but you may continue to receive essential account and billing notices. AJYUS will not request passwords or one-time payment codes through an unsolicited message.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>17. Policy changes and contact</h3>
+                <p>This Privacy Policy may be updated as AJYUS develops, adds integrations, changes providers, or responds to legal and security requirements. The “Last updated” date will identify the latest version. Material changes may be highlighted through the website, application, account notice, or another reasonable method. Continued use after the effective date means the revised Policy applies to future processing, subject to any consent requirement under law. For questions, rights requests, or privacy complaints, use the official contact details displayed on the AJYUS website or application and include enough information to identify the issue without sending unnecessary sensitive data.</p>
+              </section>
+              </div>
+            </article>
+
+            <article class="policy-document" data-policy-panel="refund">
+              <header class="policy-hero">
+                <span class="policy-kicker">AJYUS Billing</span>
+                <h2>No-Refund Policy</h2>
+                <p>
+                  AJYUS provides immediate digital access. Completed subscription and digital-service
+                  payments are therefore final and non-refundable, except where law requires otherwise
+                  or a verified billing exception in this policy applies.
+                </p>
+                <div class="policy-meta">
+                  <span>Last updated: 5 July 2026</span>
+                  <span>No-refund digital service</span>
+                  <span>Approximately 1,987 words</span>
+                </div>
+              </header>
+
+              <div class="policy-body">
+                <div class="policy-notice">
+                  Cancelling a subscription prevents future renewal when completed correctly. It does
+                  not reverse or refund the billing period that has already been purchased.
+                </div>
+
+              <section class="policy-section">
+                <h3>1. No-refund policy overview</h3>
+                <p>All AJYUS subscription purchases, plan upgrades, usage packages, credits, add-ons, and other digital-service payments are final and non-refundable once payment has been successfully completed and access to the purchased service has been activated or made available. By completing a purchase, you expressly acknowledge that AJYUS provides immediate access to digital features, computing capacity, artificial intelligence processing, higher limits, or other non-returnable services. Except where a refund is strictly required by applicable law or where this Policy expressly identifies a verified billing exception, AJYUS will not issue full or partial refunds, cash returns, reversals, credits, or compensation for a completed purchase.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>2. Why digital purchases are non-refundable</h3>
+                <p>AJYUS plans provide digital access that can begin immediately after payment. Once access is granted, the service may reserve infrastructure, incur payment-gateway costs, allocate model usage, increase account limits, or enable premium capabilities that cannot be physically returned. For this reason, a subscription is not treated like a physical product that can be sent back unused. The no-refund rule applies even when a user has used the service only briefly, has not used all available limits, changes their mind, no longer needs the service, misunderstands a feature, or later finds another service more suitable.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>3. Agreement before purchase</h3>
+                <p>Before paying, you are responsible for reviewing the plan name, price, billing period, renewal terms, feature description, usage limits, supported device or region, and this Refund Policy. You should complete a purchase only after confirming that the selected plan meets your needs. By clicking the final payment or subscription button, authenticating the transaction, or otherwise authorizing the charge, you confirm that the purchase details were shown to you and that you agree to the no-refund condition. Failure to read the displayed information does not create a right to a refund.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>4. Subscription charges are final</h3>
+                <p>Monthly, quarterly, annual, or other recurring subscription charges are non-refundable after they are processed. AJYUS does not provide prorated refunds for the remaining days of a billing cycle. Cancelling a plan prevents future renewal where cancellation is completed correctly, but it does not reverse the current charge. Unless the account is suspended for legal, security, or abuse reasons, you may continue to use paid benefits until the end of the period already purchased. If you stop using the account before that date, the unused period has no cash value and cannot be transferred to another person or plan.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>5. Automatic renewals and cancellation</h3>
+                <p>Where automatic renewal is offered, your subscription will renew using the payment method on file until you cancel through the available billing controls. You are responsible for cancelling before the renewal charge is initiated. A reminder may be provided where required by law or platform rules, but the absence of a reminder does not by itself create a refund right when renewal terms were disclosed at purchase. Deleting an application, closing a browser, not using the service, or removing a shortcut does not necessarily cancel a subscription. You must use the official cancellation method or contact the authorized billing provider.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>6. Unused limits, credits, and features</h3>
+                <p>No refund will be issued for unused messages, tokens, generations, credits, storage, priority access, or other plan allowances. Usage limits are made available for the billing period and do not represent money held on your behalf. Unless expressly stated otherwise, unused allowances expire at the end of the applicable period and do not roll over. Promotional credits, trial benefits, bonus usage, discount value, referral rewards, and complimentary access are not redeemable for cash and are not refundable. AJYUS may impose expiration dates, fair-use conditions, or technical limits on such benefits.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>7. Accidental or mistaken purchases</h3>
+                <p>AJYUS does not normally refund a purchase made accidentally, made for the wrong plan, made through a shared device, or completed because a user failed to verify the price or billing period. Users are responsible for securing their devices, payment methods, passwords, and authentication codes. Before confirming payment, carefully verify the displayed amount and plan. AJYUS may, at its sole discretion and without creating an obligation for future cases, assist with an immediate plan correction when no premium benefit has been consumed and the payment system allows a technically safe adjustment. Such assistance is not guaranteed and is not a refund entitlement.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>8. Dissatisfaction with AI responses</h3>
+                <p>A refund will not be provided merely because an AI response was inaccurate, incomplete, slower than expected, repetitive, unsuitable, or different from a user’s preferred style. Artificial intelligence output can vary and is not guaranteed to satisfy every request. Plan fees purchase access to the service and applicable limits; they do not guarantee a particular answer, business result, revenue outcome, grade, legal conclusion, creative result, or professional decision. Users must verify important information and should test available free or demonstration features before purchasing when such options are offered.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>9. Service interruptions and maintenance</h3>
+                <p>Temporary outages, maintenance, queued requests, reduced speed, third-party model interruptions, internet problems, device incompatibility, browser issues, or failures outside AJYUS’s reasonable control do not automatically qualify for a refund. AJYUS may perform maintenance, deploy updates, manage capacity, or temporarily restrict a feature to protect security and reliability. Where a material paid service remains unavailable for an extended period solely because of an AJYUS-controlled technical failure, AJYUS may choose to extend access, restore lost usage, issue service credit, or provide another remedy. Any such remedy is discretionary unless applicable law requires otherwise and does not establish a general cash-refund right.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>10. Third-party services and payment providers</h3>
+                <p>AJYUS may depend on external AI providers, cloud hosts, app stores, payment gateways, banks, card networks, telecom services, or other third parties. Delays, fees, exchange-rate differences, declined transactions, authorization holds, or service limitations caused by those parties are governed partly by their own rules. When a purchase is made through an app store or marketplace, refund requests may need to be submitted directly to that platform, and AJYUS may not have authority to reverse the payment. AJYUS is not responsible for charges imposed by your bank, card issuer, wallet provider, or network.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>11. Duplicate charges</h3>
+                <p>A verified duplicate charge for the same account, plan, amount, and billing period may be eligible for correction. You must report the issue promptly and provide transaction identifiers or other reasonable evidence. AJYUS or the payment processor will review whether two completed charges were actually captured, as opposed to one completed payment and one temporary authorization hold. If a genuine duplicate caused by the AJYUS checkout or payment integration is confirmed, the duplicate amount may be reversed to the original payment method or otherwise corrected. This exception applies only to the duplicate portion and not to the valid underlying purchase.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>12. Failed activation or non-delivery</h3>
+                <p>If payment is successfully captured but the purchased plan is not activated because of a verified AJYUS system error, you should contact support using the official channel and provide the account and transaction details requested. AJYUS will first attempt to activate the plan, restore access, or correct the account. A refund may be considered only when AJYUS confirms that payment was captured, the service was not delivered, the problem was not caused by the user or a third party, and activation cannot reasonably be completed. This limited exception does not apply when access was available but the user did not use it.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>13. Unauthorized transactions</h3>
+                <p>If you believe a payment method was used without your authorization, immediately contact your bank or payment provider and secure your AJYUS account. AJYUS may request identity verification, transaction details, device information, or other evidence to investigate. A claim will not be treated as unauthorized merely because a family member, employee, colleague, or other person used a device or payment method that you left accessible. AJYUS may suspend the related account while reviewing fraud risk. The final handling of an unauthorized payment may depend on payment-network rules and applicable law.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>14. Chargebacks and payment disputes</h3>
+                <p>You should contact AJYUS or the authorized payment provider before initiating a chargeback so that a genuine billing error can be reviewed. Filing a false, misleading, or abusive chargeback after receiving the service may be treated as a violation of the Terms and may result in suspension, termination, recovery action, or submission of transaction and usage evidence to the payment provider. AJYUS will not retaliate against a user for exercising a lawful payment right, but it may protect itself against fraud and may restrict access while a disputed payment remains unresolved.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>15. Plan changes and downgrades</h3>
+                <p>Upgrading a plan may create an immediate new charge or a prorated adjustment where the checkout expressly states that arrangement. Any displayed upgrade calculation controls the transaction. Downgrades generally take effect at the next renewal unless the service states otherwise. A user is not entitled to a refund of the price difference simply because the user later selects a lower plan. Features removed from a plan after a downgrade may become unavailable at the effective time, and unused premium capacity will not be converted into cash or transferable credit.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>16. Promotions, discounts, and price changes</h3>
+                <p>Promotional prices, coupon codes, launch offers, referral discounts, and limited-time benefits apply only under their stated conditions. Missing a promotion, forgetting to apply a coupon, purchasing before a later price reduction, or becoming eligible for a different offer after purchase does not create a refund or price-matching right. AJYUS may change future prices and plan features, but a price change does not ordinarily alter a billing period already purchased. Taxes, currency conversion, and payment-provider charges may cause the final bank statement amount to differ from the displayed base price.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>17. Account suspension or termination</h3>
+                <p>No refund is due when access is suspended or terminated because of a violation of the Terms, non-payment, fraud, security risk, abusive automation, harmful activity, attempts to bypass limits, or unlawful use. AJYUS may preserve relevant records and cooperate with lawful requests. If AJYUS permanently discontinues a paid service for business reasons unrelated to user misconduct, it may provide continued access until the end of the paid period, a reasonable substitute, service credit, or another remedy required by law. Any discretionary remedy will be determined based on the circumstances.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>18. Mandatory consumer rights</h3>
+                <p>Nothing in this Refund Policy excludes a refund, cancellation right, remedy, or statutory warranty that cannot legally be excluded in your jurisdiction. If mandatory law gives you a specific right, that right will apply to the extent required, even where this Policy states that payments are non-refundable. However, where the law permits a consumer to request immediate supply of digital content or digital services and to acknowledge the loss of a cancellation right after supply begins, your authorization of immediate activation may limit or remove that right. AJYUS may request information reasonably necessary to assess a legal claim.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>19. How to report a billing issue</h3>
+                <p>To report a duplicate charge, failed activation, or other billing error, use the official AJYUS contact details displayed on the website or application. Include the account identifier, purchase date, amount, currency, plan name, payment status, and transaction reference, but never send a complete card number, password, PIN, or one-time code. AJYUS may ask for a redacted receipt or bank entry. Requests must contain truthful and complete information. Submission of a request does not guarantee approval, and AJYUS will evaluate the request under this Policy, payment-provider rules, and applicable law.</p>
+              </section>
+
+              <section class="policy-section">
+                <h3>20. Final acknowledgement</h3>
+                <p>By purchasing an AJYUS plan or digital feature, you confirm that you understand the service is digital, access may begin immediately, usage and outcomes are not guaranteed, and completed payments are normally final. You further understand that cancellation stops future renewals but does not refund the current billing period. The only potential exceptions are those expressly described above, such as a verified duplicate charge, confirmed payment without deliverable activation, or a refund required by non-waivable law. This Policy may be updated for future purchases, and the version displayed at the time of purchase will apply unless mandatory law requires otherwise.</p>
+              </section>
+              </div>
+            </article>
+          </div>
+        </section>
+      </div>
+
+      <div class="composer-wrap" id="composerWrap">
+        <form class="composer" id="composerForm">
+          <div class="attach-menu" id="attachMenu" role="menu" aria-label="Upload options">
+            <button class="attach-option" id="uploadPhotoButton" type="button" role="menuitem">
+              <span class="attach-option-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <rect x="3" y="4" width="18" height="16" rx="3"></rect>
+                  <circle cx="8.5" cy="9" r="1.5"></circle>
+                  <path d="m4.5 17 4.2-4.2a2 2 0 0 1 2.8 0l1.8 1.8 1.2-1.2a2 2 0 0 1 2.8 0l2.2 2.2"></path>
+                </svg>
+              </span>
+              <span>
+                <strong>Upload photos</strong>
+                <small>Select JPG, PNG, WEBP or other images</small>
+              </span>
+            </button>
+
+            <button class="attach-option" id="uploadFileButton" type="button" role="menuitem">
+              <span class="attach-option-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path d="M6 3h8l4 4v14H6Z"></path>
+                  <path d="M14 3v5h5"></path>
+                  <path d="M9 13h6M9 17h6"></path>
+                </svg>
+              </span>
+              <span>
+                <strong>Upload file</strong>
+                <small>Select PDF, document, text or another file</small>
+              </span>
+            </button>
+          </div>
+
+          <button
+            class="composer-lock-overlay"
+            id="composerLockOverlay"
+            type="button"
+            aria-label="Subscription required. Open subscription page."
+            hidden
+          >
+            <span class="composer-lock-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9">
+                <rect x="5" y="10" width="14" height="11" rx="3"></rect>
+                <path d="M8 10V7a4 4 0 0 1 8 0v3"></path>
+              </svg>
+            </span>
+            <span class="composer-lock-copy">
+              <strong id="composerLockTitle">Checking subscription...</strong>
+              <small id="composerLockMessage">Please wait while AJYUS verifies your plan.</small>
+            </span>
+          </button>
+
+          <div class="composer-row">
+            <button
+              type="button"
+              class="icon-button attach-button"
+              id="attachButton"
+              aria-label="Open upload options"
+              aria-controls="attachMenu"
+              aria-expanded="false"
+              title="Add photos or files"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9">
+                <path d="M12 5v14M5 12h14"></path>
+              </svg>
+            </button>
+
+            <textarea
+              id="promptInput"
+              rows="1"
+              maxlength="6000"
+              placeholder="Ask AJYUS anything"
+              aria-label="Message AJYUS"
+            ></textarea>
+
+            <button class="send-button" id="sendButton" type="submit" disabled aria-label="Send message">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1">
+                <path d="m6 12 6-6 6 6"></path>
+                <path d="M12 18V6"></path>
+              </svg>
+            </button>
+          </div>
+
+          <div class="attachment-preview" id="attachmentPreview" aria-live="polite" hidden></div>
+
+          <input class="file-input-hidden" id="photoInput" type="file" accept="image/*" multiple />
+          <input class="file-input-hidden" id="fileInput" type="file" multiple />
+        </form>
+        <div class="composer-meta">AJYUS can make mistakes. Check important information.</div>
+      </div>
+    </main>
+  </div>
+
+  <div class="mobile-backdrop" id="mobileBackdrop"></div>
+
+  <div class="modal-backdrop" id="searchModal" role="dialog" aria-modal="true" aria-label="Search chats">
+    <div class="modal">
+      <div class="modal-head">
+        <input class="modal-search" id="chatSearchInput" type="search" placeholder="Search your chats" autocomplete="off" />
+        <button class="icon-button" id="closeSearchModal" aria-label="Close search">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9">
+            <path d="m6 6 12 12M18 6 6 18"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-results" id="searchResults"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const STORAGE_KEY = "ajyus_chats_v1";
+      const THEME_KEY = "ajyus_theme_v1";
+      const SESSION_KEY = "ajyus_session_id_v1";
+      const isLocalFrontend = ["localhost", "127.0.0.1", ""].includes(window.location.hostname);
+      const API_ORIGIN = isLocalFrontend ? "http://localhost:3000" : window.location.origin;
+      const API_BASE = `${API_ORIGIN}/api`;
+      let userId = getOrCreateUserId();
+      const sessionId = getOrCreateSessionId();
+
+      const state = {
+        chats: loadChats(),
+        currentChatId: null,
+        attachments: [],
+        activeView: "chat",
+        activePolicy: "terms",
+        subscription: {
+          checking: true,
+          active: false,
+          planId: null,
+          planName: null,
+          subscription: null
+        }
+      };
+
+      const els = {
+        html: document.documentElement,
+        app: document.getElementById("app"),
+        sidebar: document.getElementById("sidebar"),
+        mobileBackdrop: document.getElementById("mobileBackdrop"),
+        openSidebar: document.getElementById("openSidebar"),
+        historyList: document.getElementById("historyList"),
+        newChatButton: document.getElementById("newChatButton"),
+        brandHome: document.getElementById("brandHome"),
+        searchChatsButton: document.getElementById("searchChatsButton"),
+        searchModal: document.getElementById("searchModal"),
+        closeSearchModal: document.getElementById("closeSearchModal"),
+        chatSearchInput: document.getElementById("chatSearchInput"),
+        searchResults: document.getElementById("searchResults"),
+        welcomeState: document.getElementById("welcomeState"),
+        messages: document.getElementById("messages"),
+        content: document.getElementById("content"),
+        composerWrap: document.getElementById("composerWrap"),
+        composerForm: document.getElementById("composerForm"),
+        composerLockOverlay: document.getElementById("composerLockOverlay"),
+        composerLockTitle: document.getElementById("composerLockTitle"),
+        composerLockMessage: document.getElementById("composerLockMessage"),
+        promptInput: document.getElementById("promptInput"),
+        sendButton: document.getElementById("sendButton"),
+        quickTheme: document.getElementById("quickTheme"),
+        clearHistoryButton: document.getElementById("clearHistoryButton"),
+        upgradeButton: document.getElementById("upgradeButton"),
+        attachButton: document.getElementById("attachButton"),
+        attachMenu: document.getElementById("attachMenu"),
+        uploadPhotoButton: document.getElementById("uploadPhotoButton"),
+        uploadFileButton: document.getElementById("uploadFileButton"),
+        photoInput: document.getElementById("photoInput"),
+        fileInput: document.getElementById("fileInput"),
+        attachmentPreview: document.getElementById("attachmentPreview"),
+        sidebarFooter: document.getElementById("sidebarFooter"),
+        legalMenu: document.getElementById("legalMenu"),
+        legalMenuToggle: document.getElementById("legalMenuToggle"),
+        legalMenuArrow: document.getElementById("legalMenuArrow"),
+        toast: document.getElementById("toast")
+      };
+
+      initializeTheme();
+      renderHistory();
+      setView("chat");
+      updateSidebarButton();
+      applyComposerAccessState();
+      checkSubscriptionAccess();
+      loadChatHistories();
+
+      document.querySelectorAll("[data-view]").forEach(button => {
+        button.addEventListener("click", () => {
+          const view = button.dataset.view;
+          if (button.id === "newChatButton") {
+            startNewChat();
+          } else {
+            setView(view);
+          }
+          if (isMobile()) closeSidebar();
+        });
+      });
+
+      document.querySelectorAll("[data-prompt]").forEach(button => {
+        button.addEventListener("click", () => {
+          if (!requireActiveSubscription()) return;
+          els.promptInput.value = button.dataset.prompt || "";
+          resizeTextarea();
+          updateSendState();
+          els.promptInput.focus();
+        });
+      });
+
+      document.querySelectorAll("[data-theme-choice]").forEach(button => {
+        button.addEventListener("click", () => applyTheme(button.dataset.themeChoice));
+      });
+
+      els.legalMenuToggle.addEventListener("click", event => {
+        event.stopPropagation();
+        const willOpen = !els.sidebarFooter.classList.contains("open");
+        setLegalMenuState(willOpen);
+      });
+
+      document.querySelectorAll("[data-policy]").forEach(button => {
+        button.addEventListener("click", () => {
+          openPolicy(button.dataset.policy);
+          if (isMobile()) closeSidebar();
+        });
+      });
+
+      document.addEventListener("click", event => {
+        if (!els.sidebarFooter.contains(event.target)) {
+          setLegalMenuState(false);
+        }
+
+        if (!els.composerForm.contains(event.target)) {
+          setAttachMenuState(false);
+        }
+      });
+
+      els.brandHome.addEventListener("click", event => {
+        event.preventDefault();
+        startNewChat();
+        if (isMobile()) closeSidebar();
+      });
+
+      els.openSidebar.addEventListener("click", toggleSidebar);
+      els.mobileBackdrop.addEventListener("click", closeSidebar);
+
+      els.searchChatsButton.addEventListener("click", openSearchModal);
+      els.closeSearchModal.addEventListener("click", closeSearchModal);
+
+      els.searchModal.addEventListener("click", event => {
+        if (event.target === els.searchModal) closeSearchModal();
+      });
+
+      els.chatSearchInput.addEventListener("input", () => {
+        renderSearchResults(els.chatSearchInput.value.trim());
+      });
+
+      els.quickTheme.addEventListener("click", () => {
+        const next = els.html.dataset.theme === "dark" ? "light" : "dark";
+        applyTheme(next);
+      });
+
+      els.promptInput.addEventListener("input", () => {
+        resizeTextarea();
+        updateSendState();
+      });
+
+      els.promptInput.addEventListener("keydown", event => {
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          if (!els.sendButton.disabled) els.composerForm.requestSubmit();
+        }
+      });
+
+      els.composerForm.addEventListener("submit", async event => {
+        event.preventDefault();
+
+        if (!state.subscription.active) {
+          await checkSubscriptionAccess({ silent: true });
+          if (!state.subscription.active) {
+            openSubscriptionPage();
+            return;
+          }
+        }
+
+        const text = els.promptInput.value.trim();
+        const attachedItems = [...state.attachments];
+        if (!text && !attachedItems.length) return;
+
+        const userContent = buildUserMessage(text, attachedItems);
+
+        setView("chat");
+        const chat = ensureCurrentChat(userContent);
+
+        chat.messages.push({
+          role: "user",
+          content: userContent,
+          attachments: attachedItems.map(toAttachmentMetadata),
+          createdAt: Date.now()
+        });
+
+        chat.preview = userContent;
+        chat.updatedAt = Date.now();
+        saveChats();
+        renderHistory();
+        renderCurrentChat();
+
+        els.promptInput.value = "";
+        clearAttachments();
+        resizeTextarea();
+        updateSendState();
+
+        showTyping();
+
+        try {
+          await saveChatToBackend(chat);
+        } catch (historyError) {
+          console.error("User message history save error:", historyError);
+          showToast("Chat local cache mein hai; history backend save nahi hua.");
+        }
+
+        try {
+          const response = await fetch(`${API_BASE}/chat`, {
+            method: "POST",
+            headers: buildUserHeaders({
+              "Content-Type": "application/json",
+              Accept: "application/json"
+            }),
+            body: JSON.stringify(withUserId({
+              sessionId,
+              message: text || "Please review the attached items.",
+              plan: getStoredPlanId(),
+              planId: getStoredPlanId(),
+              attachments: attachedItems.map(toAttachmentMetadata)
+            }))
+          });
+
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            if ([401, 402, 403].includes(response.status)) {
+              state.subscription.checking = false;
+              state.subscription.active = false;
+              state.subscription.subscription = null;
+              applyComposerAccessState();
+            }
+
+            throw new Error(
+              data.error ||
+              data.message ||
+              `AI se response nahi mila. HTTP ${response.status}`
+            );
+          }
+
+          const assistantReply =
+            data.reply ||
+            data.response ||
+            data.answer ||
+            data.text;
+
+          if (!assistantReply) {
+            throw new Error("Backend se valid AI reply nahi mila.");
+          }
+
+          chat.messages.push({
+            role: "assistant",
+            content: assistantReply,
+            createdAt: Date.now()
+          });
+
+          chat.preview = assistantReply;
+          chat.updatedAt = Date.now();
+          saveChats();
+          renderHistory();
+          renderCurrentChat();
+
+          try {
+            await saveChatToBackend(chat);
+          } catch (historyError) {
+            console.error("Assistant response history save error:", historyError);
+            showToast("Response mila, lekin history backend update nahi hua.");
+          }
+        } catch (error) {
+          const readableError =
+            String(error?.message || "").toLowerCase().includes("failed to fetch")
+              ? "Backend connect nahi hua. Node.js server aur API URL check karein."
+              : error.message;
+
+          chat.messages.push({
+            role: "assistant",
+            content: "Error: " + readableError,
+            createdAt: Date.now()
+          });
+
+          chat.preview = "Error: " + readableError;
+          chat.updatedAt = Date.now();
+          saveChats();
+          renderHistory();
+          renderCurrentChat();
+
+          try {
+            await saveChatToBackend(chat);
+          } catch (historyError) {
+            console.error("Failed response history save error:", historyError);
+          }
+        }
+      });
+
+      els.clearHistoryButton.addEventListener("click", async () => {
+        const confirmed = window.confirm("Clear all AJYUS chat history?");
+        if (!confirmed) return;
+
+        els.clearHistoryButton.disabled = true;
+
+        try {
+          await clearChatHistoriesFromBackend();
+          state.chats = [];
+          state.currentChatId = null;
+          saveChats();
+          renderHistory();
+          renderCurrentChat();
+          showToast("Chat history cleared");
+        } catch (error) {
+          console.error("Clear history error:", error);
+          showToast(error.message || "Chat history clear nahi ho paayi.");
+        } finally {
+          els.clearHistoryButton.disabled = false;
+        }
+      });
+
+      els.upgradeButton.addEventListener("click", openSubscriptionPage);
+
+      els.composerLockOverlay.addEventListener("click", () => {
+        if (state.subscription.checking) {
+          showToast("Subscription verify ho rahi hai...");
+          return;
+        }
+        openSubscriptionPage();
+      });
+
+      els.attachButton.addEventListener("click", event => {
+        event.stopPropagation();
+        if (!requireActiveSubscription()) return;
+        setAttachMenuState(!els.attachMenu.classList.contains("open"));
+      });
+
+      els.uploadPhotoButton.addEventListener("click", () => {
+        if (!requireActiveSubscription()) return;
+        setAttachMenuState(false);
+        els.photoInput.click();
+      });
+
+      els.uploadFileButton.addEventListener("click", () => {
+        if (!requireActiveSubscription()) return;
+        setAttachMenuState(false);
+        els.fileInput.click();
+      });
+
+      els.photoInput.addEventListener("change", () => {
+        addAttachments([...els.photoInput.files], "photo");
+        els.photoInput.value = "";
+      });
+
+      els.fileInput.addEventListener("change", () => {
+        addAttachments([...els.fileInput.files], "file");
+        els.fileInput.value = "";
+      });
+
+      document.addEventListener("keydown", event => {
+        if (event.key === "Escape") {
+          closeSearchModal();
+          setAttachMenuState(false);
+          closeSidebar();
+        }
+
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+          event.preventDefault();
+          openSearchModal();
+        }
+
+        if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === "o") {
+          event.preventDefault();
+          startNewChat();
+        }
+      });
+
+      function openSubscriptionPage() {
+        window.location.href = "subscription.html";
+      }
+
+      function requireActiveSubscription() {
+        if (state.subscription.active) return true;
+
+        if (state.subscription.checking) {
+          showToast("Subscription verify ho rahi hai...");
+          return false;
+        }
+
+        openSubscriptionPage();
+        return false;
+      }
+
+      function applyComposerAccessState() {
+        const isLocked = !state.subscription.active;
+        const isChecking = state.subscription.checking;
+
+        els.composerForm.classList.toggle("subscription-locked", isLocked);
+        els.composerLockOverlay.hidden = !isLocked;
+        els.promptInput.disabled = isLocked;
+        els.attachButton.disabled = isLocked;
+        els.uploadPhotoButton.disabled = isLocked;
+        els.uploadFileButton.disabled = isLocked;
+        els.photoInput.disabled = isLocked;
+        els.fileInput.disabled = isLocked;
+
+        if (isLocked) {
+          setAttachMenuState(false);
+          els.sendButton.disabled = true;
+          els.promptInput.setAttribute("aria-disabled", "true");
+
+          if (isChecking) {
+            els.composerLockTitle.textContent = "Checking subscription...";
+            els.composerLockMessage.textContent = "Please wait while AJYUS verifies your plan.";
+            els.promptInput.placeholder = "Subscription verify ho rahi hai...";
+          } else {
+            els.composerLockTitle.textContent = "Chat locked";
+            els.composerLockMessage.textContent = "Subscription kharidne ke liye yahan click karein.";
+            els.promptInput.placeholder = "Subscription required";
+          }
+        } else {
+          els.promptInput.removeAttribute("aria-disabled");
+          els.promptInput.placeholder = "Ask AJYUS anything";
+          updateSendState();
+        }
+      }
+
+      async function checkSubscriptionAccess({ silent = false } = {}) {
+        state.subscription.checking = true;
+        applyComposerAccessState();
+
+        try {
+          const requestUserId = getRequestUserId();
+          const response = await fetch(
+            `${API_BASE}/subscriptions/current/${encodeURIComponent(requestUserId)}`,
+            {
+              method: "GET",
+              headers: buildUserHeaders({ Accept: "application/json" }),
+              cache: "no-store"
+            }
+          );
+
+          const data = await response.json().catch(() => ({}));
+
+          if (!response.ok) {
+            throw new Error(
+              data.error ||
+              data.message ||
+              `Subscription verify nahi hui. HTTP ${response.status}`
+            );
+          }
+
+          const subscription = data.subscription || null;
+          const status = String(subscription?.status || "").toLowerCase();
+          const endDateValue = subscription?.endDate || subscription?.expiresAt || null;
+          const endTimestamp = endDateValue ? new Date(endDateValue).getTime() : null;
+          const isNotExpired = !endTimestamp || !Number.isFinite(endTimestamp) || endTimestamp > Date.now();
+          const hasActiveSubscription = Boolean(
+            data.success &&
+            (data.hasActiveSubscription === true || status === "active") &&
+            isNotExpired
+          );
+
+          const planId =
+            data.plan?.id ||
+            data.plan?.planId ||
+            subscription?.planId ||
+            subscription?.plan?.id ||
+            subscription?.plan ||
+            null;
+
+          const planName =
+            data.plan?.name ||
+            subscription?.planName ||
+            subscription?.plan?.name ||
+            planId ||
+            null;
+
+          state.subscription.checking = false;
+          state.subscription.active = hasActiveSubscription;
+          state.subscription.planId = hasActiveSubscription ? planId : null;
+          state.subscription.planName = hasActiveSubscription ? planName : null;
+          state.subscription.subscription = hasActiveSubscription ? subscription : null;
+
+          if (hasActiveSubscription) {
+            try {
+              if (typeof planId === "string" && planId.trim()) {
+                localStorage.setItem("ajyusPlanId", planId.trim());
+              }
+
+              localStorage.setItem(
+                "ajyusSubscription",
+                JSON.stringify({
+                  ...(subscription || {}),
+                  status: "active",
+                  planId,
+                  planName
+                })
+              );
+            } catch {
+              // Browser storage unavailable; backend verification still controls access.
+            }
+          }
+
+          applyComposerAccessState();
+
+          if (!silent && hasActiveSubscription) {
+            showToast(planName ? `${planName} subscription active hai.` : "Subscription active hai.");
+          }
+
+          return hasActiveSubscription;
+        } catch (error) {
+          console.error("Subscription verification error:", error);
+          state.subscription.checking = false;
+          state.subscription.active = false;
+          state.subscription.planId = null;
+          state.subscription.planName = null;
+          state.subscription.subscription = null;
+          applyComposerAccessState();
+
+          if (!silent) {
+            showToast("Subscription verify nahi hui. Backend check karein.");
+          }
+
+          return false;
+        }
+      }
+
+      function setAttachMenuState(isOpen) {
+        els.attachMenu.classList.toggle("open", isOpen);
+        els.attachButton.classList.toggle("active", isOpen);
+        els.attachButton.setAttribute("aria-expanded", String(isOpen));
+      }
+
+      function addAttachments(files, kind) {
+        if (!files.length) return;
+
+        const MAX_FILES = 8;
+        const MAX_FILE_SIZE = 25 * 1024 * 1024;
+        let addedCount = 0;
+        let rejectedCount = 0;
+
+        for (const file of files) {
+          if (state.attachments.length >= MAX_FILES) {
+            rejectedCount += 1;
+            continue;
+          }
+
+          if (kind === "photo" && !file.type.startsWith("image/")) {
+            rejectedCount += 1;
+            continue;
+          }
+
+          if (file.size > MAX_FILE_SIZE) {
+            rejectedCount += 1;
+            continue;
+          }
+
+          const duplicate = state.attachments.some(item =>
+            item.file.name === file.name &&
+            item.file.size === file.size &&
+            item.file.lastModified === file.lastModified
+          );
+
+          if (duplicate) continue;
+
+          state.attachments.push({
+            id: "attachment_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+            kind: file.type.startsWith("image/") ? "photo" : kind,
+            file
+          });
+          addedCount += 1;
+        }
+
+        renderAttachments();
+        updateSendState();
+
+        if (addedCount) {
+          showToast(addedCount === 1 ? "1 item selected" : `${addedCount} items selected`);
+        }
+
+        if (rejectedCount) {
+          showToast("Some items were skipped. Maximum 8 items and 25 MB per item.");
+        }
+      }
+
+      function removeAttachment(attachmentId) {
+        state.attachments = state.attachments.filter(item => item.id !== attachmentId);
+        renderAttachments();
+        updateSendState();
+      }
+
+      function clearAttachments() {
+        state.attachments = [];
+        renderAttachments();
+        setAttachMenuState(false);
+        updateSendState();
+      }
+
+      function renderAttachments() {
+        els.attachmentPreview.innerHTML = "";
+        els.attachmentPreview.hidden = state.attachments.length === 0;
+
+        state.attachments.forEach(item => {
+          const chip = document.createElement("div");
+          chip.className = "attachment-chip";
+
+          const icon = document.createElement("span");
+          icon.className = "attachment-chip-icon";
+          icon.textContent = item.kind === "photo" ? "IMG" : "FILE";
+
+          const copy = document.createElement("span");
+          copy.className = "attachment-chip-copy";
+
+          const name = document.createElement("span");
+          name.className = "attachment-chip-name";
+          name.textContent = item.file.name;
+          name.title = item.file.name;
+
+          const size = document.createElement("span");
+          size.className = "attachment-chip-size";
+          size.textContent = formatFileSize(item.file.size);
+
+          const removeButton = document.createElement("button");
+          removeButton.className = "attachment-remove";
+          removeButton.type = "button";
+          removeButton.setAttribute("aria-label", `Remove ${item.file.name}`);
+          removeButton.title = "Remove";
+          removeButton.innerHTML = `
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="m6 6 12 12M18 6 6 18"></path>
+            </svg>
+          `;
+          removeButton.addEventListener("click", () => removeAttachment(item.id));
+
+          copy.append(name, size);
+          chip.append(icon, copy, removeButton);
+          els.attachmentPreview.appendChild(chip);
+        });
+      }
+
+      function buildUserMessage(text, items) {
+        const attachmentLines = items.map(item => {
+          const label = item.kind === "photo" ? "Photo" : "File";
+          return `[${label}] ${item.file.name}`;
+        });
+
+        return [text, ...attachmentLines].filter(Boolean).join("\n");
+      }
+
+      function toAttachmentMetadata(item) {
+        return {
+          name: item.file.name,
+          type: item.file.type || "application/octet-stream",
+          size: item.file.size,
+          kind: item.kind
+        };
+      }
+
+      function formatFileSize(bytes) {
+        if (!Number.isFinite(bytes) || bytes <= 0) return "0 B";
+        const units = ["B", "KB", "MB", "GB"];
+        const index = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+        const value = bytes / Math.pow(1024, index);
+        return `${value >= 10 || index === 0 ? value.toFixed(0) : value.toFixed(1)} ${units[index]}`;
+      }
+
+      function isValidUserId(value) {
+        return (
+          typeof value === "string" &&
+          /^[a-zA-Z0-9_-]{8,100}$/.test(value.trim())
+        );
+      }
+
+      function persistUserId(value) {
+        const cleanValue = String(value || "").trim();
+        if (!isValidUserId(cleanValue)) return false;
+
+        try {
+          [
+            "ajyusUserId",
+            "ajyus-user-id",
+            "ajyus_user_id",
+            "userId"
+          ].forEach(key => localStorage.setItem(key, cleanValue));
+          return true;
+        } catch {
+          return false;
+        }
+      }
+
+      function createNewUserId() {
+        const timePart = Date.now().toString(36);
+        const randomPart =
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID().replace(/-/g, "")
+            : Math.random().toString(36).slice(2, 14) + Math.random().toString(36).slice(2, 10);
+
+        return `ajyus_${timePart}_${randomPart}`.slice(0, 100);
+      }
+
+      function getOrCreateUserId() {
+        try {
+          const storedCandidates = [
+            localStorage.getItem("ajyusUserId"),
+            localStorage.getItem("ajyus-user-id"),
+            localStorage.getItem("ajyus_user_id"),
+            localStorage.getItem("userId")
+          ];
+
+          const existingUserId = storedCandidates.find(isValidUserId);
+          const resolvedUserId = existingUserId || createNewUserId();
+          persistUserId(resolvedUserId);
+          return resolvedUserId;
+        } catch {
+          return createNewUserId();
+        }
+      }
+
+      function getRequestUserId() {
+        const resolvedUserId = getOrCreateUserId();
+        userId = resolvedUserId;
+        return resolvedUserId;
+      }
+
+      function buildUserHeaders(extraHeaders = {}) {
+        const requestUserId = getRequestUserId();
+
+        return {
+          ...extraHeaders,
+          "X-User-Id": requestUserId,
+          "X-AJYUS-User-Id": requestUserId
+        };
+      }
+
+      function withUserId(payload = {}) {
+        const requestUserId = getRequestUserId();
+
+        return {
+          ...payload,
+          userId: requestUserId,
+          userid: requestUserId,
+          user_id: requestUserId,
+          clientUserId: requestUserId
+        };
+      }
+
+      function getStoredPlanId() {
+        if (!state.subscription.checking) {
+          if (!state.subscription.active) return "basic";
+          if (typeof state.subscription.planId === "string" && state.subscription.planId.trim()) {
+            return state.subscription.planId.trim();
+          }
+        }
+
+        const directPlanKeys = [
+          "ajyusPlanId",
+          "ajyus_plan_id",
+          "selectedPlan",
+          "planId",
+          "currentPlan"
+        ];
+
+        for (const key of directPlanKeys) {
+          try {
+            const value = localStorage.getItem(key);
+            if (value && /^[a-zA-Z0-9_-]{2,50}$/.test(value.trim())) {
+              return value.trim();
+            }
+          } catch {
+            break;
+          }
+        }
+
+        const subscriptionKeys = [
+          "ajyusSubscription",
+          "ajyus_subscription",
+          "subscription",
+          "currentSubscription"
+        ];
+
+        for (const key of subscriptionKeys) {
+          try {
+            const rawValue = localStorage.getItem(key);
+            if (!rawValue) continue;
+
+            const parsed = JSON.parse(rawValue);
+            const planId =
+              parsed?.planId ||
+              parsed?.plan?.id ||
+              parsed?.plan ||
+              parsed?.subscription?.planId ||
+              parsed?.subscription?.plan;
+
+            if (typeof planId === "string" && planId.trim()) {
+              return planId.trim();
+            }
+          } catch {
+            // Invalid or unrelated localStorage value; continue with the next key.
+          }
+        }
+
+        return "basic";
+      }
+
+      function getOrCreateSessionId() {
+        try {
+          const existingSessionId = localStorage.getItem(SESSION_KEY);
+
+          if (existingSessionId) {
+            return existingSessionId;
+          }
+
+          const generatedSessionId =
+            typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+              ? crypto.randomUUID()
+              : "ajyus_" + Date.now() + "_" + Math.random().toString(36).slice(2, 12);
+
+          localStorage.setItem(SESSION_KEY, generatedSessionId);
+          return generatedSessionId;
+        } catch {
+          return "ajyus_" + Date.now() + "_" + Math.random().toString(36).slice(2, 12);
+        }
+      }
+
+      function toTimestamp(value, fallback = Date.now()) {
+        if (typeof value === "number" && Number.isFinite(value)) {
+          return value;
+        }
+
+        const timestamp = new Date(value).getTime();
+        return Number.isFinite(timestamp) ? timestamp : fallback;
+      }
+
+      function loadChats() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function saveChats() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state.chats));
+        } catch {
+          showToast("Browser storage is unavailable.");
+        }
+      }
+
+      async function loadChatHistories() {
+        try {
+          const response = await fetch(
+            `${API_BASE}/history?sessionId=${encodeURIComponent(sessionId)}&userId=${encodeURIComponent(getRequestUserId())}`,
+            {
+              headers: buildUserHeaders({ Accept: "application/json" })
+            }
+          );
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Recents load nahi ho paaye.");
+          }
+
+          const remoteChats = (data.histories || []).map(history => {
+            const historyId = String(history._id);
+            const cachedChat = state.chats.find(chat => {
+              return chat.id === historyId || chat.backendId === historyId;
+            });
+
+            const cachedMessages = Array.isArray(cachedChat?.messages)
+              ? cachedChat.messages
+              : [];
+
+            return {
+              id: historyId,
+              backendId: historyId,
+              title: history.title || "New Chat",
+              preview: history.preview || cachedMessages.at(-1)?.content || "",
+              messages: cachedMessages,
+              loaded: Boolean(cachedChat?.loaded || cachedMessages.length),
+              createdAt: toTimestamp(history.createdAt),
+              updatedAt: toTimestamp(
+                history.lastMessageAt || history.updatedAt || history.createdAt
+              )
+            };
+          });
+
+          const localOnlyChats = state.chats.filter(chat => {
+            return !chat.backendId;
+          });
+
+          state.chats = [...remoteChats, ...localOnlyChats].sort(
+            (a, b) => toTimestamp(b.updatedAt) - toTimestamp(a.updatedAt)
+          );
+
+          saveChats();
+          renderHistory();
+        } catch (error) {
+          console.error("Load recents error:", error);
+          renderHistory();
+          showToast("Backend recents load nahi hue; local cache dikhaya gaya hai.");
+        }
+      }
+
+      async function loadChatFromBackend(chat) {
+        if (!chat?.backendId || chat.loaded) {
+          return chat;
+        }
+
+        const response = await fetch(
+          `${API_BASE}/history/${encodeURIComponent(chat.backendId)}?sessionId=${encodeURIComponent(sessionId)}&userId=${encodeURIComponent(getRequestUserId())}`,
+          {
+            headers: buildUserHeaders({ Accept: "application/json" })
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Chat history open nahi ho paayi.");
+        }
+
+        const history = data.history;
+
+        chat.title = history.title || chat.title || "New Chat";
+        chat.messages = Array.isArray(history.messages)
+          ? history.messages.map(message => ({
+              role: message.role,
+              content: message.content,
+              createdAt: toTimestamp(message.createdAt)
+            }))
+          : [];
+        chat.preview = chat.messages.at(-1)?.content || "";
+        chat.createdAt = toTimestamp(history.createdAt, chat.createdAt);
+        chat.updatedAt = toTimestamp(
+          history.lastMessageAt || history.updatedAt || history.createdAt,
+          chat.updatedAt
+        );
+        chat.loaded = true;
+
+        saveChats();
+        return chat;
+      }
+
+      async function openChat(chat) {
+        state.currentChatId = chat.id;
+        setView("chat");
+        renderHistory();
+
+        if (chat.backendId && !chat.loaded) {
+          els.welcomeState.hidden = true;
+          els.messages.hidden = false;
+          els.messages.innerHTML =
+            '<div class="history-empty" style="padding:24px 0;">Loading conversation...</div>';
+
+          try {
+            await loadChatFromBackend(chat);
+          } catch (error) {
+            console.error("Open chat error:", error);
+            showToast(error.message || "Chat open nahi ho paayi.");
+          }
+        }
+
+        renderHistory();
+        renderCurrentChat();
+
+        if (isMobile()) {
+          closeSidebar();
+        }
+      }
+
+      async function saveChatToBackend(chat) {
+        const response = await fetch(`${API_BASE}/history/save`, {
+          method: "POST",
+          headers: buildUserHeaders({
+            "Content-Type": "application/json",
+            Accept: "application/json"
+          }),
+          body: JSON.stringify(withUserId({
+            sessionId,
+            historyId: chat.backendId || undefined,
+            title: chat.title,
+            messages: chat.messages.map(message => ({
+              role: message.role,
+              content: message.content,
+              createdAt: message.createdAt
+            }))
+          }))
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Chat history save nahi ho paayi.");
+        }
+
+        const savedHistory = data.history;
+        const oldId = chat.id;
+        const savedId = String(savedHistory._id);
+
+        chat.id = savedId;
+        chat.backendId = savedId;
+        chat.title = savedHistory.title || chat.title;
+        chat.preview =
+          savedHistory.messages?.at(-1)?.content ||
+          chat.messages.at(-1)?.content ||
+          chat.preview ||
+          "";
+        chat.createdAt = toTimestamp(savedHistory.createdAt, chat.createdAt);
+        chat.updatedAt = toTimestamp(
+          savedHistory.lastMessageAt || savedHistory.updatedAt,
+          chat.updatedAt
+        );
+        chat.loaded = true;
+
+        if (state.currentChatId === oldId) {
+          state.currentChatId = savedId;
+        }
+
+        saveChats();
+        renderHistory();
+        return chat;
+      }
+
+      async function clearChatHistoriesFromBackend() {
+        const response = await fetch(
+          `${API_BASE}/history?sessionId=${encodeURIComponent(sessionId)}&userId=${encodeURIComponent(getRequestUserId())}`,
+          {
+            method: "DELETE",
+            headers: buildUserHeaders({ Accept: "application/json" })
+          }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || "Chat history clear nahi ho paayi.");
+        }
+
+        return data;
+      }
+
+      function getCurrentChat() {
+        return state.chats.find(chat => chat.id === state.currentChatId) || null;
+      }
+
+      function ensureCurrentChat(firstMessage) {
+        let chat = getCurrentChat();
+
+        if (!chat) {
+          chat = {
+            id: "chat_" + Date.now() + "_" + Math.random().toString(36).slice(2, 8),
+            backendId: null,
+            title: makeTitle(firstMessage),
+            preview: firstMessage,
+            messages: [],
+            loaded: true,
+            createdAt: Date.now(),
+            updatedAt: Date.now()
+          };
+
+          state.chats.unshift(chat);
+          state.currentChatId = chat.id;
+        }
+
+        return chat;
+      }
+
+      function makeTitle(text) {
+        const clean = text.replace(/\s+/g, " ").trim();
+        return clean.length > 38 ? clean.slice(0, 38) + "…" : clean;
+      }
+
+      function startNewChat() {
+        state.currentChatId = null;
+        clearAttachments();
+        setView("chat");
+        renderHistory();
+        renderCurrentChat();
+        els.promptInput.focus();
+      }
+
+      function renderHistory() {
+        const sorted = [...state.chats].sort(
+          (a, b) => toTimestamp(b.updatedAt) - toTimestamp(a.updatedAt)
+        );
+        els.historyList.innerHTML = "";
+
+        if (!sorted.length) {
+          const empty = document.createElement("div");
+          empty.className = "history-empty";
+          empty.textContent = "Your conversations will appear here.";
+          els.historyList.appendChild(empty);
+          return;
+        }
+
+        sorted.forEach(chat => {
+          const button = document.createElement("button");
+          button.className =
+            "history-item" + (chat.id === state.currentChatId ? " active" : "");
+          button.type = "button";
+          button.title = chat.title;
+
+          const title = document.createElement("span");
+          title.className = "history-title";
+          title.textContent = chat.title;
+
+          button.appendChild(title);
+          button.addEventListener("click", () => {
+            openChat(chat);
+          });
+
+          els.historyList.appendChild(button);
+        });
+      }
+
+      function renderCurrentChat() {
+        const chat = getCurrentChat();
+        els.messages.innerHTML = "";
+
+        if (!chat || !Array.isArray(chat.messages) || !chat.messages.length) {
+          els.welcomeState.hidden = false;
+          els.messages.hidden = true;
+          return;
+        }
+
+        els.welcomeState.hidden = true;
+        els.messages.hidden = false;
+
+        chat.messages.forEach(message => {
+          els.messages.appendChild(createMessageElement(message.role, message.content));
+        });
+
+        requestAnimationFrame(scrollToBottom);
+      }
+
+      function createMessageElement(role, content) {
+        const article = document.createElement("article");
+        article.className = "message " + role;
+
+        const avatar = document.createElement("div");
+        avatar.className = "message-avatar";
+        avatar.textContent = role === "assistant" ? "A" : "KS";
+
+        const body = document.createElement("div");
+
+        const roleLabel = document.createElement("div");
+        roleLabel.className = "message-role";
+        roleLabel.textContent = role === "assistant" ? "AJYUS" : "You";
+
+        const text = document.createElement("div");
+        text.className = "message-text";
+        text.textContent = content;
+
+        body.append(roleLabel, text);
+        article.append(avatar, body);
+        return article;
+      }
+
+      function showTyping() {
+        els.welcomeState.hidden = true;
+        els.messages.hidden = false;
+
+        const article = document.createElement("article");
+        article.className = "message assistant";
+        article.id = "typingMessage";
+        article.innerHTML = `
+          <div class="message-avatar">A</div>
+          <div>
+            <div class="message-role">AJYUS</div>
+            <div class="typing" aria-label="AJYUS is typing">
+              <i></i><i></i><i></i>
+            </div>
+          </div>
+        `;
+
+        els.messages.appendChild(article);
+        scrollToBottom();
+      }
+
+      function renderSearchResults(query = "") {
+        const q = query.toLowerCase();
+        const results = state.chats
+          .filter(chat => {
+            const combined = [
+              chat.title,
+              chat.preview || "",
+              ...(Array.isArray(chat.messages)
+                ? chat.messages.map(message => message.content)
+                : [])
+            ].join(" ").toLowerCase();
+
+            return combined.includes(q);
+          })
+          .sort((a, b) => b.updatedAt - a.updatedAt);
+
+        els.searchResults.innerHTML = "";
+
+        if (!results.length) {
+          const empty = document.createElement("div");
+          empty.className = "history-empty";
+          empty.style.padding = "18px";
+          empty.textContent = q ? "No matching chats found." : "No chat history yet.";
+          els.searchResults.appendChild(empty);
+          return;
+        }
+
+        results.forEach(chat => {
+          const button = document.createElement("button");
+          button.className = "search-result";
+          button.type = "button";
+
+          const title = document.createElement("strong");
+          title.textContent = chat.title;
+
+          const preview = document.createElement("span");
+          preview.textContent =
+            chat.preview ||
+            (Array.isArray(chat.messages) ? chat.messages.at(-1)?.content : "") ||
+            "Empty conversation";
+
+          button.append(title, preview);
+          button.addEventListener("click", () => {
+            closeSearchModal();
+            openChat(chat);
+          });
+
+          els.searchResults.appendChild(button);
+        });
+      }
+
+      function setView(viewName) {
+        state.activeView = viewName;
+
+        document.querySelectorAll(".view").forEach(view => {
+          view.classList.toggle("active", view.id === viewName + "View");
+        });
+
+        document.querySelectorAll(".nav-button[data-view]").forEach(button => {
+          button.classList.toggle("active", button.dataset.view === viewName);
+        });
+
+        document.querySelectorAll("[data-policy]").forEach(button => {
+          button.classList.toggle(
+            "active",
+            viewName === "legal" && button.dataset.policy === state.activePolicy
+          );
+        });
+
+        els.composerWrap.style.display = viewName === "chat" ? "" : "none";
+        els.content.scrollTop = 0;
+
+        if (viewName === "chat") renderCurrentChat();
+      }
+
+      function openPolicy(policyName) {
+        const validPolicies = ["terms", "privacy", "refund"];
+        const selectedPolicy = validPolicies.includes(policyName) ? policyName : "terms";
+
+        state.activePolicy = selectedPolicy;
+
+        document.querySelectorAll("[data-policy-panel]").forEach(panel => {
+          panel.classList.toggle("active", panel.dataset.policyPanel === selectedPolicy);
+        });
+
+        setView("legal");
+        setLegalMenuState(false);
+        els.content.scrollTop = 0;
+      }
+
+      function setLegalMenuState(isOpen) {
+        els.sidebarFooter.classList.toggle("open", isOpen);
+        els.legalMenuToggle.setAttribute("aria-expanded", String(isOpen));
+      }
+
+      function initializeTheme() {
+        const saved = localStorage.getItem(THEME_KEY);
+        const systemPrefersLight = window.matchMedia?.("(prefers-color-scheme: light)").matches;
+        applyTheme(saved || (systemPrefersLight ? "light" : "dark"), false);
+      }
+
+      function applyTheme(theme, persist = true) {
+        const finalTheme = theme === "light" ? "light" : "dark";
+        els.html.dataset.theme = finalTheme;
+
+        document.querySelectorAll("[data-theme-choice]").forEach(button => {
+          button.classList.toggle("active", button.dataset.themeChoice === finalTheme);
+        });
+
+        if (persist) localStorage.setItem(THEME_KEY, finalTheme);
+      }
+
+      function openSearchModal() {
+        if (isMobile()) closeSidebar();
+        renderSearchResults("");
+        els.chatSearchInput.value = "";
+        els.searchModal.classList.add("open");
+        requestAnimationFrame(() => els.chatSearchInput.focus());
+      }
+
+      function closeSearchModal() {
+        els.searchModal.classList.remove("open");
+      }
+
+      function isMobile() {
+        return window.matchMedia("(max-width: 900px)").matches;
+      }
+
+      function updateSidebarButton() {
+        const isOpen = isMobile()
+          ? els.sidebar.classList.contains("open")
+          : !els.app.classList.contains("sidebar-collapsed");
+
+        els.openSidebar.setAttribute("aria-expanded", String(isOpen));
+        els.openSidebar.setAttribute("aria-label", isOpen ? "Close sidebar" : "Open sidebar");
+        els.openSidebar.title = isOpen ? "Close sidebar" : "Open sidebar";
+      }
+
+      function toggleSidebar() {
+        if (isMobile()) {
+          els.sidebar.classList.contains("open") ? closeSidebar() : openSidebar();
+          return;
+        }
+
+        els.app.classList.contains("sidebar-collapsed") ? openSidebar() : closeSidebar();
+      }
+
+      function openSidebar() {
+        if (isMobile()) {
+          els.sidebar.classList.add("open");
+          els.mobileBackdrop.classList.add("open");
+        } else {
+          els.app.classList.remove("sidebar-collapsed");
+        }
+        updateSidebarButton();
+      }
+
+      function closeSidebar() {
+        if (isMobile()) {
+          els.sidebar.classList.remove("open");
+          els.mobileBackdrop.classList.remove("open");
+        } else {
+          els.app.classList.add("sidebar-collapsed");
+        }
+        updateSidebarButton();
+      }
+
+      window.addEventListener("resize", () => {
+        if (!isMobile()) {
+          els.sidebar.classList.remove("open");
+          els.mobileBackdrop.classList.remove("open");
+        }
+        updateSidebarButton();
+      });
+
+      window.addEventListener("focus", () => {
+        checkSubscriptionAccess({ silent: true });
+      });
+
+      window.addEventListener("pageshow", () => {
+        checkSubscriptionAccess({ silent: true });
+      });
+
+      function resizeTextarea() {
+        els.promptInput.style.height = "auto";
+        els.promptInput.style.height = Math.min(els.promptInput.scrollHeight, 160) + "px";
+      }
+
+      function updateSendState() {
+        if (state.subscription.checking || !state.subscription.active) {
+          els.sendButton.disabled = true;
+          return;
+        }
+
+        els.sendButton.disabled = !els.promptInput.value.trim() && state.attachments.length === 0;
+      }
+
+      function scrollToBottom() {
+        requestAnimationFrame(() => {
+          els.content.scrollTop = els.content.scrollHeight;
+        });
+      }
+
+      function showToast(message) {
+        els.toast.textContent = message;
+        els.toast.classList.add("show");
+        clearTimeout(showToast.timer);
+        showToast.timer = setTimeout(() => els.toast.classList.remove("show"), 2400);
+      }
+
+      function wait(ms) {
+        return new Promise(resolve => setTimeout(resolve, ms));
+      }
+    })();
+  </script>
+</body>
+</html>
