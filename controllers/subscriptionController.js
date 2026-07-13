@@ -1,7 +1,7 @@
 import Razorpay from "razorpay";
 import crypto from "crypto";
 
-import Subscription from "../models/Subscription.js";
+import Subscription from "../models/subscription.js";
 import { PLANS } from "../config/plans.js";
 
 /*
