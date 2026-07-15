@@ -1,8 +1,9 @@
+```js
 import { razorpay } from "../config/razorpay.js";
 
 /*
-  Payment amount frontend se nahi lenge.
-  Plan ki asli price backend par decide hogi.
+  The payment amount will not be accepted from the frontend.
+  The actual plan price will be determined by the backend.
 */
 const PLANS = {
   basic: {
@@ -17,7 +18,7 @@ const PLANS = {
 
   ultra_pro: {
     name: "Ultra Pro",
-    amount: 199900 // ₹1,999 = 1,99,900 paise
+    amount: 199900 // ₹1,999 = 199,900 paise
   }
 };
 
@@ -28,7 +29,7 @@ export async function createRazorpayOrder(req, res) {
     if (!planId) {
       return res.status(400).json({
         success: false,
-        message: "planId required hai."
+        message: "planId is required."
       });
     }
 
@@ -65,7 +66,7 @@ export async function createRazorpayOrder(req, res) {
     });
   } catch (error) {
     console.error(
-      "Razorpay order create error:",
+      "Razorpay order creation error:",
       error?.error?.description || error.message
     );
 
@@ -73,7 +74,8 @@ export async function createRazorpayOrder(req, res) {
       success: false,
       message:
         error?.error?.description ||
-        "Razorpay order create nahi ho saka."
+        "Unable to create the Razorpay order."
     });
   }
 }
+```
