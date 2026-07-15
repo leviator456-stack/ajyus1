@@ -5,7 +5,9 @@ export const connectDatabase = async () => {
     const mongoUri = process.env.MONGODB_URI;
 
     if (!mongoUri) {
-      console.error("MONGODB_URI environment variables mein nahi mili.");
+      console.error(
+        "MONGODB_URI was not found in the environment variables."
+      );
       return false;
     }
 
@@ -13,7 +15,7 @@ export const connectDatabase = async () => {
       serverSelectionTimeoutMS: 10000
     });
 
-    console.log("MongoDB database successfully connect ho gaya.");
+    console.log("MongoDB database connected successfully.");
     return true;
   } catch (error) {
     console.error("MongoDB connection error:", error.message);
