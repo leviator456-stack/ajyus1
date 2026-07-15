@@ -52,7 +52,7 @@ const createHistoryTitle = (messages) => {
   return `${title.slice(0, 50)}...`;
 };
 
-// Save new history or update existing history
+// Save a new chat history or update an existing one
 export const saveChatHistory = async (req, res) => {
   try {
     const sessionId = cleanSessionId(req.body.sessionId);
@@ -62,18 +62,18 @@ export const saveChatHistory = async (req, res) => {
     if (!sessionId) {
       return res.status(400).json({
         success: false,
-        error: "sessionId zaroori hai."
+        error: "sessionId is required."
       });
     }
 
     if (messages.length === 0) {
       return res.status(400).json({
         success: false,
-        error: "Kam se kam ek valid message zaroori hai."
+        error: "At least one valid message is required."
       });
     }
 
-    // Existing chat update
+    // Update an existing chat
     if (historyId) {
       if (!mongoose.Types.ObjectId.isValid(historyId)) {
         return res.status(400).json({
@@ -90,7 +90,7 @@ export const saveChatHistory = async (req, res) => {
       if (!existingHistory) {
         return res.status(404).json({
           success: false,
-          error: "Chat history nahi mili."
+          error: "Chat history was not found."
         });
       }
 
@@ -113,12 +113,12 @@ export const saveChatHistory = async (req, res) => {
 
       return res.status(200).json({
         success: true,
-        message: "Chat history update ho gayi.",
+        message: "Chat history updated successfully.",
         history: existingHistory
       });
     }
 
-    // New chat create
+    // Create a new chat
     const title =
       typeof req.body.title === "string" &&
       req.body.title.trim()
@@ -134,7 +134,7 @@ export const saveChatHistory = async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: "Chat history save ho gayi.",
+      message: "Chat history saved successfully.",
       history
     });
   } catch (error) {
@@ -142,12 +142,12 @@ export const saveChatHistory = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      error: "Chat history save nahi ho paayi."
+      error: "Unable to save chat history."
     });
   }
 };
 
-// Recents list
+// Get the recent chat list
 export const getChatHistories = async (req, res) => {
   try {
     const sessionId = cleanSessionId(req.query.sessionId);
@@ -155,7 +155,7 @@ export const getChatHistories = async (req, res) => {
     if (!sessionId) {
       return res.status(400).json({
         success: false,
-        error: "sessionId zaroori hai."
+        error: "sessionId is required."
       });
     }
 
@@ -192,16 +192,16 @@ export const getChatHistories = async (req, res) => {
       histories: recents
     });
   } catch (error) {
-    console.error("Get histories error:", error);
+    console.error("Get chat histories error:", error);
 
     return res.status(500).json({
       success: false,
-      error: "Recents load nahi ho paaye."
+      error: "Unable to load recent chats."
     });
   }
 };
 
-// Open one complete chat
+// Get one complete chat
 export const getChatHistoryById = async (req, res) => {
   try {
     const sessionId = cleanSessionId(req.query.sessionId);
@@ -210,7 +210,7 @@ export const getChatHistoryById = async (req, res) => {
     if (!sessionId) {
       return res.status(400).json({
         success: false,
-        error: "sessionId zaroori hai."
+        error: "sessionId is required."
       });
     }
 
@@ -229,7 +229,7 @@ export const getChatHistoryById = async (req, res) => {
     if (!history) {
       return res.status(404).json({
         success: false,
-        error: "Chat history nahi mili."
+        error: "Chat history was not found."
       });
     }
 
@@ -238,11 +238,11 @@ export const getChatHistoryById = async (req, res) => {
       history
     });
   } catch (error) {
-    console.error("Get single history error:", error);
+    console.error("Get chat history error:", error);
 
     return res.status(500).json({
       success: false,
-      error: "Chat history open nahi ho paayi."
+      error: "Unable to open chat history."
     });
   }
 };
@@ -256,7 +256,7 @@ export const deleteChatHistory = async (req, res) => {
     if (!sessionId) {
       return res.status(400).json({
         success: false,
-        error: "sessionId zaroori hai."
+        error: "sessionId is required."
       });
     }
 
@@ -275,25 +275,25 @@ export const deleteChatHistory = async (req, res) => {
     if (!deletedHistory) {
       return res.status(404).json({
         success: false,
-        error: "Chat history nahi mili."
+        error: "Chat history was not found."
       });
     }
 
     return res.status(200).json({
       success: true,
-      message: "Chat history delete ho gayi."
+      message: "Chat history deleted successfully."
     });
   } catch (error) {
-    console.error("Delete history error:", error);
+    console.error("Delete chat history error:", error);
 
     return res.status(500).json({
       success: false,
-      error: "Chat history delete nahi ho paayi."
+      error: "Unable to delete chat history."
     });
   }
 };
 
-// Delete all recents
+// Delete all recent chats
 export const clearChatHistories = async (req, res) => {
   try {
     const sessionId = cleanSessionId(req.query.sessionId);
@@ -301,7 +301,7 @@ export const clearChatHistories = async (req, res) => {
     if (!sessionId) {
       return res.status(400).json({
         success: false,
-        error: "sessionId zaroori hai."
+        error: "sessionId is required."
       });
     }
 
@@ -311,15 +311,15 @@ export const clearChatHistories = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Saari chat history delete ho gayi.",
+      message: "All chat histories were deleted successfully.",
       deletedCount: result.deletedCount
     });
   } catch (error) {
-    console.error("Clear histories error:", error);
+    console.error("Clear chat histories error:", error);
 
     return res.status(500).json({
       success: false,
-      error: "Chat histories clear nahi ho paayi."
+      error: "Unable to clear chat histories."
     });
   }
 };
