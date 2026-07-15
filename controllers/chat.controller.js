@@ -7,7 +7,7 @@ export async function chatController(req, res, next) {
     if (typeof message !== "string" || !message.trim()) {
       return res.status(400).json({
         success: false,
-        error: "Message likhna zaroori hai."
+        error: "enter prompt."
       });
     }
 
