@@ -24,7 +24,7 @@ export const PLANS = {
   ultra_pro: {
     id: "ultra_pro",
     name: "Ultra Pro",
-    model: "gemini-2.5-pro",
+    model: "gemini-2.5-flash",
     price: 1999,
     currency: "INR",
     durationDays: 30,
