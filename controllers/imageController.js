@@ -11,7 +11,7 @@ export async function generateImage(req, res) {
     if (!prompt || !prompt.trim()) {
       return res.status(400).json({
         success: false,
-        error: "Prompt required hai."
+        error: "Prompt is required."
       });
     }
 
@@ -21,7 +21,7 @@ export async function generateImage(req, res) {
     if (!selectedPlan || !subscription) {
       return res.status(403).json({
         success: false,
-        error: "Active subscription nahi mili.",
+        error: "No active subscription found.",
         redirectTo: "subscription.html"
       });
     }
@@ -42,7 +42,7 @@ export async function generateImage(req, res) {
       imageSize
     });
 
-    // Image successfully generate hone ke baad hi usage count increase hoga
+    // Increase the usage count only after the image is generated successfully
     subscription.usedImages = (subscription.usedImages || 0) + 1;
     await subscription.save();
 
@@ -55,7 +55,7 @@ export async function generateImage(req, res) {
 
     return res.status(200).json({
       success: true,
-      message: "Image successfully generate ho gayi.",
+      message: "Image generated successfully.",
       image: `data:${result.mimeType};base64,${result.imageBase64}`,
       mimeType: result.mimeType,
       model: result.model,
@@ -72,7 +72,7 @@ export async function generateImage(req, res) {
       success: false,
       error:
         error.message ||
-        "Image generate karne mein error aayi."
+        "An error occurred while generating the image."
     });
   }
 }
