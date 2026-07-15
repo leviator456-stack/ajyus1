@@ -18,7 +18,7 @@ export const PLANS = {
     currency: "INR",
     durationDays: 30,
     chatLimit: 2000,
-    imageLimit: 100
+    imageLimit: 40
   },
 
   ultra_pro: {
@@ -28,8 +28,8 @@ export const PLANS = {
     price: 1999,
     currency: "INR",
     durationDays: 30,
-    chatLimit: -1,
-    imageLimit: 500
+    chatLimit: 4000,
+    imageLimit: 60
   }
 };
 
