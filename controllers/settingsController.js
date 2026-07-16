@@ -1,4 +1,3 @@
-```js
 import Chat from "../models/chat.js";
 
 export const clearChatHistory = async (req, res) => {
@@ -8,7 +7,7 @@ export const clearChatHistory = async (req, res) => {
     if (!sessionId) {
       return res.status(400).json({
         success: false,
-        message: "Session ID was not provided."
+        message: "Session ID is required."
       });
     }
 
@@ -16,7 +15,7 @@ export const clearChatHistory = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Chat history was cleared successfully.",
+      message: "Chat history cleared successfully.",
       deletedChats: result.deletedCount
     });
   } catch (error) {
@@ -24,8 +23,7 @@ export const clearChatHistory = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Unable to clear the chat history."
+      message: "Unable to clear chat history."
     });
   }
 };
-```
