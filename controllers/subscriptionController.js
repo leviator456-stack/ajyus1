@@ -5,8 +5,11 @@ import Subscription from "../models/subscription.js";
 import { PLANS } from "../config/plans.js";
 
 /*
-  User ID headers, body ya route parameter se milegi.
-  Isse "User ID missing" error ke chances kam ho jayenge.
+  The user ID can be read from request headers, body,
+  route parameters, or query parameters.
+
+  This reduces the chances of receiving a
+  "User ID is missing" error.
 */
 function getUserId(req) {
   const userId =
@@ -20,12 +23,18 @@ function getUserId(req) {
     req.query?.userId ||
     null;
 
-  return typeof userId === "string" ? userId.trim() : null;
+  return typeof userId === "string"
+    ? userId.trim()
+    : null;
 }
 
 function addDays(date, days) {
   const result = new Date(date);
-  result.setDate(result.getDate() + Number(days || 30));
+
+  result.setDate(
+    result.getDate() + Number(days || 30)
+  );
+
   return result;
 }
 
@@ -48,12 +57,23 @@ function calculateRemaining(limit, used) {
     return -1;
   }
 
-  return Math.max(Number(limit || 0) - Number(used || 0), 0);
+  return Math.max(
+    Number(limit || 0) - Number(used || 0),
+    0
+  );
 }
 
-function buildSubscriptionResponse(subscription, plan) {
-  const usedChats = Number(subscription.usedChats || 0);
-  const usedImages = Number(subscription.usedImages || 0);
+function buildSubscriptionResponse(
+  subscription,
+  plan
+) {
+  const usedChats = Number(
+    subscription.usedChats || 0
+  );
+
+  const usedImages = Number(
+    subscription.usedImages || 0
+  );
 
   return {
     id: subscription._id,
@@ -85,7 +105,8 @@ function buildSubscriptionResponse(subscription, plan) {
 }
 
 /*
-  Expired active subscriptions ko expired mark karta hai.
+  Marks active subscriptions as expired
+  when their end date has passed.
 */
 async function expireOldSubscriptions(userId) {
   const currentDate = new Date();
@@ -109,15 +130,21 @@ async function expireOldSubscriptions(userId) {
 /*
   POST /api/subscriptions/create-order
 */
-export async function createSubscriptionOrder(req, res) {
+export async function createSubscriptionOrder(
+  req,
+  res
+) {
   try {
     const userId = getUserId(req);
-    const planId = String(req.body?.planId || "").trim();
+
+    const planId = String(
+      req.body?.planId || ""
+    ).trim();
 
     if (!userId) {
       return res.status(400).json({
         success: false,
-        error: "User ID missing hai."
+        error: "User ID is missing."
       });
     }
 
@@ -133,7 +160,8 @@ export async function createSubscriptionOrder(req, res) {
     if (!razorpay) {
       return res.status(500).json({
         success: false,
-        error: "Razorpay keys backend .env mein missing hain."
+        error:
+          "Razorpay keys are missing from the backend .env file."
       });
     }
 
@@ -149,7 +177,7 @@ export async function createSubscriptionOrder(req, res) {
     ) {
       return res.status(400).json({
         success: false,
-        error: "Plan amount valid nahi hai."
+        error: "The plan amount is invalid."
       });
     }
 
@@ -157,6 +185,7 @@ export async function createSubscriptionOrder(req, res) {
       amount: amountInPaise,
       currency: plan.currency || "INR",
       receipt: `sub_${Date.now()}`,
+
       notes: {
         userId,
         planId: plan.id,
@@ -164,23 +193,26 @@ export async function createSubscriptionOrder(req, res) {
       }
     });
 
-    const pendingSubscription = await Subscription.create({
-      userId,
-      planId: plan.id,
-      planName: plan.name,
-      amount: plan.price,
-      currency: plan.currency || "INR",
-      status: "pending",
-      razorpayOrderId: order.id,
-      usedChats: 0,
-      usedImages: 0
-    });
+    const pendingSubscription =
+      await Subscription.create({
+        userId,
+        planId: plan.id,
+        planName: plan.name,
+        amount: plan.price,
+        currency: plan.currency || "INR",
+        status: "pending",
+        razorpayOrderId: order.id,
+        usedChats: 0,
+        usedImages: 0
+      });
 
     return res.status(200).json({
       success: true,
-      message: "Razorpay order create ho gaya.",
+      message:
+        "Razorpay order created successfully.",
 
-      razorpayKeyId: process.env.RAZORPAY_KEY_ID,
+      razorpayKeyId:
+        process.env.RAZORPAY_KEY_ID,
 
       order: {
         id: order.id,
@@ -189,7 +221,8 @@ export async function createSubscriptionOrder(req, res) {
         receipt: order.receipt
       },
 
-      subscriptionId: pendingSubscription._id,
+      subscriptionId:
+        pendingSubscription._id,
 
       plan: {
         id: plan.id,
@@ -209,10 +242,11 @@ export async function createSubscriptionOrder(req, res) {
 
     return res.status(500).json({
       success: false,
+
       error:
         error?.error?.description ||
         error?.message ||
-        "Subscription order create nahi ho paaya."
+        "Unable to create the subscription order."
     });
   }
 }
@@ -220,14 +254,19 @@ export async function createSubscriptionOrder(req, res) {
 /*
   POST /api/subscriptions/verify-payment
 
-  Payment successful hone par:
-  1. Signature verify hogi
-  2. Chosen plan active hoga
-  3. Purana active plan expired hoga
-  4. 30 din ki validity set hogi
-  5. Frontend ko index.html redirect information milegi
+  After a successful payment:
+
+  1. The Razorpay signature will be verified.
+  2. The selected plan will be activated.
+  3. The previous active plan will be expired.
+  4. The subscription validity will be set.
+  5. Redirect information will be returned
+     to the frontend.
 */
-export async function verifySubscriptionPayment(req, res) {
+export async function verifySubscriptionPayment(
+  req,
+  res
+) {
   try {
     const userId = getUserId(req);
 
@@ -240,7 +279,7 @@ export async function verifySubscriptionPayment(req, res) {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        error: "User ID missing hai."
+        error: "User ID is missing."
       });
     }
 
@@ -251,45 +290,54 @@ export async function verifySubscriptionPayment(req, res) {
     ) {
       return res.status(400).json({
         success: false,
-        error: "Payment verification details missing hain."
+        error:
+          "Payment verification details are missing."
       });
     }
 
     if (!process.env.RAZORPAY_KEY_SECRET) {
       return res.status(500).json({
         success: false,
-        error: "Razorpay secret backend .env mein missing hai."
+        error:
+          "Razorpay secret is missing from the backend .env file."
       });
     }
 
     /*
-      Agar same payment pehle verify ho chuki hai,
-      to dobara fail karne ke bajaye active plan return karo.
+      If the same payment has already been
+      verified, return the active subscription
+      instead of failing the request.
     */
     const alreadyActiveSubscription =
       await Subscription.findOne({
         userId,
-        razorpayOrderId: razorpay_order_id,
-        razorpayPaymentId: razorpay_payment_id,
+        razorpayOrderId:
+          razorpay_order_id,
+        razorpayPaymentId:
+          razorpay_payment_id,
         status: "active"
       });
 
     if (alreadyActiveSubscription) {
       const activePlan =
-        PLANS[alreadyActiveSubscription.planId];
+        PLANS[
+          alreadyActiveSubscription.planId
+        ];
 
       if (!activePlan) {
         return res.status(400).json({
           success: false,
-          error: "Active subscription ka plan config nahi mila."
+          error:
+            "Plan configuration for the active subscription was not found."
         });
       }
 
       return res.status(200).json({
         success: true,
         alreadyVerified: true,
+
         message:
-          "Payment pehle hi verify ho chuki hai. Subscription active hai.",
+          "The payment has already been verified. The subscription is active.",
 
         hasActiveSubscription: true,
 
@@ -298,15 +346,17 @@ export async function verifySubscriptionPayment(req, res) {
           name: activePlan.name,
           price: activePlan.price,
           currency: activePlan.currency,
-          durationDays: activePlan.durationDays,
+          durationDays:
+            activePlan.durationDays,
           chatLimit: activePlan.chatLimit,
           imageLimit: activePlan.imageLimit
         },
 
-        subscription: buildSubscriptionResponse(
-          alreadyActiveSubscription,
-          activePlan
-        ),
+        subscription:
+          buildSubscriptionResponse(
+            alreadyActiveSubscription,
+            activePlan
+          ),
 
         redirectTo: "index.html"
       });
@@ -322,8 +372,9 @@ export async function verifySubscriptionPayment(req, res) {
       )
       .digest("hex");
 
-    const receivedSignature =
-      String(razorpay_signature);
+    const receivedSignature = String(
+      razorpay_signature
+    );
 
     const generatedBuffer = Buffer.from(
       generatedSignature,
@@ -336,7 +387,8 @@ export async function verifySubscriptionPayment(req, res) {
     );
 
     const signatureIsValid =
-      generatedBuffer.length === receivedBuffer.length &&
+      generatedBuffer.length ===
+        receivedBuffer.length &&
       crypto.timingSafeEqual(
         generatedBuffer,
         receivedBuffer
@@ -346,7 +398,8 @@ export async function verifySubscriptionPayment(req, res) {
       await Subscription.findOneAndUpdate(
         {
           userId,
-          razorpayOrderId: razorpay_order_id,
+          razorpayOrderId:
+            razorpay_order_id,
           status: "pending"
         },
         {
@@ -358,47 +411,58 @@ export async function verifySubscriptionPayment(req, res) {
 
       return res.status(400).json({
         success: false,
-        error: "Payment verification failed."
+        error:
+          "Payment verification failed."
       });
     }
 
-    const subscription = await Subscription.findOne({
-      userId,
-      razorpayOrderId: razorpay_order_id,
-      status: "pending"
-    });
+    const subscription =
+      await Subscription.findOne({
+        userId,
+        razorpayOrderId:
+          razorpay_order_id,
+        status: "pending"
+      });
 
     if (!subscription) {
       return res.status(404).json({
         success: false,
+
         error:
-          "Pending subscription nahi mili. User ID aur Razorpay order check karein."
+          "Pending subscription was not found. Check the user ID and Razorpay order ID."
       });
     }
 
-    const plan = PLANS[subscription.planId];
+    const plan =
+      PLANS[subscription.planId];
 
     if (!plan) {
       return res.status(400).json({
         success: false,
-        error: "Plan config nahi mila."
+        error:
+          "Plan configuration was not found."
       });
     }
 
     const startDate = new Date();
+
     const endDate = addDays(
       startDate,
       plan.durationDays || 30
     );
 
     /*
-      User ka purana active plan expire hoga.
-      Naya chosen plan active hoga.
+      The user's previous active plan will
+      be marked as expired.
+
+      The newly selected plan will then
+      become active.
     */
     await Subscription.updateMany(
       {
         userId,
         status: "active",
+
         _id: {
           $ne: subscription._id
         }
@@ -411,8 +475,10 @@ export async function verifySubscriptionPayment(req, res) {
     );
 
     subscription.status = "active";
+
     subscription.razorpayPaymentId =
       razorpay_payment_id;
+
     subscription.startDate = startDate;
     subscription.endDate = endDate;
     subscription.usedChats = 0;
@@ -425,7 +491,7 @@ export async function verifySubscriptionPayment(req, res) {
       hasActiveSubscription: true,
 
       message:
-        `${plan.name} payment verified. Subscription active ho gayi.`,
+        `${plan.name} payment verified. The subscription is now active.`,
 
       plan: {
         id: plan.id,
@@ -438,14 +504,15 @@ export async function verifySubscriptionPayment(req, res) {
         imageLimit: plan.imageLimit
       },
 
-      subscription: buildSubscriptionResponse(
-        subscription,
-        plan
-      ),
+      subscription:
+        buildSubscriptionResponse(
+          subscription,
+          plan
+        ),
 
       /*
-        subscription.html is value ko use karke
-        user ko chat page par redirect karega.
+        subscription.html can use this value
+        to redirect the user to the chat page.
       */
       redirectTo: "index.html"
     });
@@ -457,9 +524,10 @@ export async function verifySubscriptionPayment(req, res) {
 
     return res.status(500).json({
       success: false,
+
       error:
         error?.message ||
-        "Payment verify nahi ho paayi."
+        "Unable to verify the payment."
     });
   }
 }
@@ -467,16 +535,20 @@ export async function verifySubscriptionPayment(req, res) {
 /*
   GET /api/subscriptions/status
 
-  User ID header/query se milegi.
+  The user ID can be read from the
+  request header or query parameters.
 */
-export async function getSubscriptionStatus(req, res) {
+export async function getSubscriptionStatus(
+  req,
+  res
+) {
   try {
     const userId = getUserId(req);
 
     if (!userId) {
       return res.status(400).json({
         success: false,
-        error: "User ID missing hai."
+        error: "User ID is missing."
       });
     }
 
@@ -484,15 +556,17 @@ export async function getSubscriptionStatus(req, res) {
 
     const currentDate = new Date();
 
-    const subscription = await Subscription.findOne({
-      userId,
-      status: "active",
-      endDate: {
-        $gt: currentDate
-      }
-    }).sort({
-      createdAt: -1
-    });
+    const subscription =
+      await Subscription.findOne({
+        userId,
+        status: "active",
+
+        endDate: {
+          $gt: currentDate
+        }
+      }).sort({
+        createdAt: -1
+      });
 
     if (!subscription) {
       return res.status(200).json({
@@ -500,16 +574,20 @@ export async function getSubscriptionStatus(req, res) {
         hasActiveSubscription: false,
         plan: null,
         subscription: null,
-        message: "Active subscription nahi hai."
+        message:
+          "No active subscription was found."
       });
     }
 
-    const plan = PLANS[subscription.planId];
+    const plan =
+      PLANS[subscription.planId];
 
     if (!plan) {
       return res.status(500).json({
         success: false,
-        error: "Active subscription ka plan config nahi mila."
+
+        error:
+          "Plan configuration for the active subscription was not found."
       });
     }
 
@@ -528,10 +606,11 @@ export async function getSubscriptionStatus(req, res) {
         imageLimit: plan.imageLimit
       },
 
-      subscription: buildSubscriptionResponse(
-        subscription,
-        plan
-      )
+      subscription:
+        buildSubscriptionResponse(
+          subscription,
+          plan
+        )
     });
   } catch (error) {
     console.error(
@@ -541,9 +620,10 @@ export async function getSubscriptionStatus(req, res) {
 
     return res.status(500).json({
       success: false,
+
       error:
         error?.message ||
-        "Subscription status check nahi ho paaya."
+        "Unable to check the subscription status."
     });
   }
 }
@@ -551,16 +631,20 @@ export async function getSubscriptionStatus(req, res) {
 /*
   GET /api/subscriptions/current/:userId
 
-  index.html aur image.html isi endpoint ko call kar sakte hain.
+  index.html and image.html can call
+  this endpoint.
 */
-export async function getCurrentSubscription(req, res) {
+export async function getCurrentSubscription(
+  req,
+  res
+) {
   try {
     const userId = getUserId(req);
 
     if (!userId) {
       return res.status(400).json({
         success: false,
-        error: "User ID missing hai."
+        error: "User ID is missing."
       });
     }
 
@@ -568,15 +652,17 @@ export async function getCurrentSubscription(req, res) {
 
     const currentDate = new Date();
 
-    const subscription = await Subscription.findOne({
-      userId,
-      status: "active",
-      endDate: {
-        $gt: currentDate
-      }
-    }).sort({
-      createdAt: -1
-    });
+    const subscription =
+      await Subscription.findOne({
+        userId,
+        status: "active",
+
+        endDate: {
+          $gt: currentDate
+        }
+      }).sort({
+        createdAt: -1
+      });
 
     if (!subscription) {
       return res.status(200).json({
@@ -584,16 +670,20 @@ export async function getCurrentSubscription(req, res) {
         hasActiveSubscription: false,
         plan: null,
         subscription: null,
-        message: "Active subscription nahi hai."
+        message:
+          "No active subscription was found."
       });
     }
 
-    const plan = PLANS[subscription.planId];
+    const plan =
+      PLANS[subscription.planId];
 
     if (!plan) {
       return res.status(500).json({
         success: false,
-        error: "Subscription ka plan config nahi mila."
+
+        error:
+          "Plan configuration for the subscription was not found."
       });
     }
 
@@ -612,10 +702,11 @@ export async function getCurrentSubscription(req, res) {
         imageLimit: plan.imageLimit
       },
 
-      subscription: buildSubscriptionResponse(
-        subscription,
-        plan
-      )
+      subscription:
+        buildSubscriptionResponse(
+          subscription,
+          plan
+        )
     });
   } catch (error) {
     console.error(
@@ -625,9 +716,10 @@ export async function getCurrentSubscription(req, res) {
 
     return res.status(500).json({
       success: false,
+
       error:
         error?.message ||
-        "Current subscription check nahi ho paayi."
+        "Unable to check the current subscription."
     });
   }
 }
