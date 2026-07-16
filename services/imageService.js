@@ -1,3 +1,4 @@
+```js
 import { GoogleGenAI } from "@google/genai";
 
 const IMAGE_MODEL =
@@ -7,7 +8,9 @@ function getGeminiClient() {
   const apiKey = process.env.GEMINI_API_KEY;
 
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY .env file mein nahi mili.");
+    throw new Error(
+      "GEMINI_API_KEY was not found in the environment variables."
+    );
   }
 
   return new GoogleGenAI({
@@ -25,14 +28,16 @@ export async function generateGeminiImage({
   const cleanPrompt = String(prompt || "").trim();
 
   if (!cleanPrompt) {
-    throw new Error("Image generate karne ke liye prompt zaroori hai.");
+    throw new Error(
+      "A prompt is required to generate an image."
+    );
   }
 
   const ai = getGeminiClient();
 
   let input = cleanPrompt;
 
-  // Agar user ne image upload ki hai to image editing mode chalega
+  // Use image-editing mode when the user uploads an image
   if (uploadedImageBuffer) {
     input = [
       {
@@ -61,7 +66,9 @@ export async function generateGeminiImage({
   const generatedImage = interaction.output_image;
 
   if (!generatedImage?.data) {
-    throw new Error("Gemini API ne image return nahi ki.");
+    throw new Error(
+      "The Gemini API did not return an image."
+    );
   }
 
   return {
@@ -70,3 +77,4 @@ export async function generateGeminiImage({
     model: IMAGE_MODEL
   };
 }
+```
