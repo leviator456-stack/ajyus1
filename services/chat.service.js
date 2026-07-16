@@ -3,6 +3,7 @@ import { env } from "../config/env.js";
 import { getPlan } from "../config/plans.js";
 
 const FALLBACK_MODEL = "gemini-3.1-flash-lite";
+const REQUEST_TIMEOUT_MS = 6000;
 
 const SYSTEM_INSTRUCTION =
   "You are AJYUS, a helpful AI assistant. Answer clearly and professionally.";
@@ -13,69 +14,88 @@ function wait(milliseconds) {
   });
 }
 
-function isRetryableGeminiError(error) {
+function isRetryableError(error) {
   const status = Number(
     error?.status ??
       error?.statusCode ??
       error?.response?.status ??
-      error?.cause?.status
+      0
   );
 
-  const code = String(
-    error?.code ??
-      error?.error?.status ??
-      error?.cause?.code ??
-      ""
-  ).toUpperCase();
-
+  const code = String(error?.code || "").toUpperCase();
   const message = String(error?.message || "").toLowerCase();
 
-  const retryableStatuses = [
-    408,
-    429,
-    500,
-    502,
-    503,
-    504
-  ];
-
-  const retryableCodes = [
-    "RESOURCE_EXHAUSTED",
-    "INTERNAL",
-    "UNAVAILABLE",
-    "DEADLINE_EXCEEDED"
-  ];
-
-  const retryableMessages = [
-    "high demand",
-    "overloaded",
-    "temporarily unavailable",
-    "resource exhausted",
-    "rate limit",
-    "timeout",
-    "timed out",
-    "network error",
-    "fetch failed"
-  ];
-
   return (
-    retryableStatuses.includes(status) ||
-    retryableCodes.includes(code) ||
-    retryableMessages.some((text) => message.includes(text))
+    code === "AJYUS_TIMEOUT" ||
+    [408, 429, 500, 502, 503, 504].includes(status) ||
+    message.includes("high demand") ||
+    message.includes("overloaded") ||
+    message.includes("temporarily unavailable") ||
+    message.includes("timeout") ||
+    message.includes("timed out") ||
+    message.includes("network")
   );
 }
 
-async function requestGeminiReply(ai, model, message) {
-  const interaction = await ai.interactions.create({
-    model,
-    input: message,
-    system_instruction: SYSTEM_INSTRUCTION
+function isAuthenticationError(error) {
+  const status = Number(
+    error?.status ??
+      error?.statusCode ??
+      error?.response?.status ??
+      0
+  );
+
+  const message = String(error?.message || "").toLowerCase();
+
+  return (
+    status === 401 ||
+    status === 403 ||
+    message.includes("api key") ||
+    message.includes("authentication")
+  );
+}
+
+async function withTimeout(promise, timeoutMs, model) {
+  let timeoutId;
+
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      const error = new Error(
+        `Gemini model ${model} request timed out.`
+      );
+
+      error.code = "AJYUS_TIMEOUT";
+      reject(error);
+    }, timeoutMs);
   });
+
+  try {
+    return await Promise.race([
+      promise,
+      timeoutPromise
+    ]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function requestGeminiReply(ai, model, message) {
+  const interaction = await withTimeout(
+    ai.interactions.create({
+      model,
+      input: message,
+      system_instruction: SYSTEM_INSTRUCTION
+    }),
+    REQUEST_TIMEOUT_MS,
+    model
+  );
 
   const reply = interaction.output_text?.trim();
 
   if (!reply) {
-    throw new Error("Gemini returned an empty response.");
+    throw new Error(
+      "Gemini returned an empty response."
+    );
   }
 
   return reply;
@@ -85,7 +105,7 @@ async function requestWithRetry(
   ai,
   model,
   message,
-  maximumAttempts = 4
+  maximumAttempts
 ) {
   let lastError;
 
@@ -103,30 +123,19 @@ async function requestWithRetry(
     } catch (error) {
       lastError = error;
 
-      const shouldRetry =
-        isRetryableGeminiError(error) &&
-        attempt < maximumAttempts;
-
-      if (!shouldRetry) {
+      if (
+        !isRetryableError(error) ||
+        attempt === maximumAttempts
+      ) {
         throw error;
       }
 
-      const baseDelay =
-        1000 * 2 ** (attempt - 1);
-
-      const randomDelay =
-        Math.floor(Math.random() * 300);
-
-      const delay =
-        baseDelay + randomDelay;
-
       console.warn(
         `Gemini model ${model} failed. ` +
-          `Retrying attempt ${attempt + 1} ` +
-          `in ${delay}ms.`
+          `Retrying attempt ${attempt + 1}.`
       );
 
-      await wait(delay);
+      await wait(500);
     }
   }
 
@@ -152,7 +161,7 @@ export async function generateChatReply(
 
   const selectedPlan = getPlan(planName);
 
-  if (!selectedPlan || !selectedPlan.model) {
+  if (!selectedPlan?.model) {
     throw new Error(
       "A valid subscription plan was not found."
     );
@@ -170,19 +179,16 @@ export async function generateChatReply(
       ai,
       primaryModel,
       cleanMessage,
-      4
+      2
     );
   } catch (primaryError) {
-    if (
-      !isRetryableGeminiError(primaryError) ||
-      primaryModel === FALLBACK_MODEL
-    ) {
+    if (isAuthenticationError(primaryError)) {
       throw primaryError;
     }
 
     console.warn(
-      `Primary model ${primaryModel} is unavailable. ` +
-        `Switching to ${FALLBACK_MODEL}.`
+      `Switching from ${primaryModel} ` +
+        `to ${FALLBACK_MODEL}.`
     );
 
     try {
@@ -190,11 +196,11 @@ export async function generateChatReply(
         ai,
         FALLBACK_MODEL,
         cleanMessage,
-        3
+        1
       );
     } catch (fallbackError) {
       console.error(
-        "Primary and fallback Gemini models failed:",
+        "Gemini primary and fallback models failed:",
         fallbackError
       );
 
@@ -203,7 +209,6 @@ export async function generateChatReply(
       );
 
       temporaryError.statusCode = 503;
-
       throw temporaryError;
     }
   }
