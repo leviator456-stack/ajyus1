@@ -1,3 +1,4 @@
+```js
 import express from "express";
 import multer from "multer";
 
@@ -23,7 +24,7 @@ const upload = multer({
     if (!allowedMimeTypes.includes(file.mimetype)) {
       return callback(
         new Error(
-          "Sirf JPG, PNG aur WEBP images upload kar sakte hain."
+          "Only JPG, PNG, and WEBP images can be uploaded."
         )
       );
     }
@@ -42,7 +43,7 @@ function imageUploadMiddleware(req, res, next) {
       if (error.code === "LIMIT_FILE_SIZE") {
         return res.status(400).json({
           success: false,
-          error: "Uploaded image 10 MB se chhoti honi chahiye."
+          error: "The uploaded image must be smaller than 10 MB."
         });
       }
 
@@ -56,7 +57,7 @@ function imageUploadMiddleware(req, res, next) {
       success: false,
       error:
         error.message ||
-        "Image upload nahi ho paayi."
+        "The image could not be uploaded."
     });
   });
 }
@@ -65,11 +66,11 @@ function imageUploadMiddleware(req, res, next) {
 router.get("/test", (req, res) => {
   return res.status(200).json({
     success: true,
-    message: "AJYUS image route working hai."
+    message: "The AJYUS image route is working."
   });
 });
 
-// Text-to-image aur image editing route
+// Text-to-image and image-editing route
 router.post(
   "/generate",
   requireActiveSubscription("image"),
@@ -78,3 +79,4 @@ router.post(
 );
 
 export default router;
+```
