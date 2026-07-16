@@ -1,4 +1,3 @@
-```js
 import express from "express";
 import multer from "multer";
 
@@ -29,7 +28,7 @@ const upload = multer({
       );
     }
 
-    callback(null, true);
+    return callback(null, true);
   }
 });
 
@@ -43,7 +42,7 @@ function imageUploadMiddleware(req, res, next) {
       if (error.code === "LIMIT_FILE_SIZE") {
         return res.status(400).json({
           success: false,
-          error: "The uploaded image must be smaller than 10 MB."
+          error: "The uploaded image must not exceed 10 MB."
         });
       }
 
@@ -55,28 +54,19 @@ function imageUploadMiddleware(req, res, next) {
 
     return res.status(400).json({
       success: false,
-      error:
-        error.message ||
-        "The image could not be uploaded."
+      error: error.message || "Image upload failed."
     });
   });
 }
 
-// Image route test
-router.get("/test", (req, res) => {
-  return res.status(200).json({
-    success: true,
-    message: "The AJYUS image route is working."
-  });
-});
-
-// Text-to-image and image-editing route
 router.post(
   "/generate",
-  requireActiveSubscription("image"),
+  requireActiveSubscription("images"),
   imageUploadMiddleware,
   generateImage
 );
 
+/*
+  This line fixes the Railway deployment error.
+*/
 export default router;
-```
