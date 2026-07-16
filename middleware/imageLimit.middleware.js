@@ -18,13 +18,13 @@ export async function imageLimit(req, res, next) {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        error: "User ID nahi mili."
+        error: "User ID was not provided."
       });
     }
 
     const currentDate = new Date();
 
-    // Expired subscriptions ko expired mark karo
+    // Mark expired subscriptions as expired
     await Subscription.updateMany(
       {
         userId,
@@ -40,7 +40,7 @@ export async function imageLimit(req, res, next) {
       }
     );
 
-    // User ka latest active subscription dhundo
+    // Find the user's latest active subscription
     const subscription = await Subscription.findOne({
       userId,
       status: "active",
@@ -55,7 +55,7 @@ export async function imageLimit(req, res, next) {
       return res.status(403).json({
         success: false,
         error:
-          "Image generate karne ke liye active subscription zaroori hai."
+          "An active subscription is required to generate images."
       });
     }
 
@@ -64,7 +64,7 @@ export async function imageLimit(req, res, next) {
     if (!selectedPlan) {
       return res.status(404).json({
         success: false,
-        error: "Subscription plan available nahi hai."
+        error: "The subscription plan is not available."
       });
     }
 
@@ -73,14 +73,14 @@ export async function imageLimit(req, res, next) {
     if (imageUsed >= selectedPlan.imageLimit) {
       return res.status(429).json({
         success: false,
-        error: `${selectedPlan.name} plan ki image limit poori ho gayi hai.`,
+        error: `The image limit for the ${selectedPlan.name} plan has been reached.`,
         plan: selectedPlan.id,
         imageLimit: selectedPlan.imageLimit,
         remainingImages: 0
       });
     }
 
-    // Successful image banne ke baad controller usage badhayega
+    // The controller will increase usage after successful image generation
     req.userId = userId;
     req.subscription = subscription;
     req.selectedPlanName = selectedPlan.id;
@@ -96,7 +96,7 @@ export async function imageLimit(req, res, next) {
 
     return res.status(500).json({
       success: false,
-      error: "Image plan limit check nahi ho payi."
+      error: "Unable to check the image plan limit."
     });
   }
 }
