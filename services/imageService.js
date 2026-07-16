@@ -1,4 +1,3 @@
-```js
 import { GoogleGenAI } from "@google/genai";
 
 const IMAGE_MODEL =
@@ -13,68 +12,64 @@ function getGeminiClient() {
     );
   }
 
-  return new GoogleGenAI({
-    apiKey
-  });
+  return new GoogleGenAI({ apiKey });
 }
 
 export async function generateGeminiImage({
   prompt,
   uploadedImageBuffer = null,
-  uploadedImageMimeType = "image/png",
-  aspectRatio = "1:1",
-  imageSize = "1K"
+  uploadedImageMimeType = "image/png"
 }) {
   const cleanPrompt = String(prompt || "").trim();
 
   if (!cleanPrompt) {
-    throw new Error(
-      "A prompt is required to generate an image."
-    );
+    throw new Error("A prompt is required to generate an image.");
   }
 
   const ai = getGeminiClient();
 
-  let input = cleanPrompt;
+  const parts = [];
 
-  // Use image-editing mode when the user uploads an image
   if (uploadedImageBuffer) {
-    input = [
-      {
-        type: "text",
-        text: cleanPrompt
-      },
-      {
-        type: "image",
-        mime_type: uploadedImageMimeType,
+    parts.push({
+      inlineData: {
+        mimeType: uploadedImageMimeType,
         data: uploadedImageBuffer.toString("base64")
       }
-    ];
+    });
   }
 
-  const interaction = await ai.interactions.create({
+  parts.push({
+    text: cleanPrompt
+  });
+
+  const response = await ai.models.generateContent({
     model: IMAGE_MODEL,
-    input,
-    response_format: {
-      type: "image",
-      mime_type: "image/jpeg",
-      aspect_ratio: aspectRatio,
-      image_size: imageSize
+    contents: [
+      {
+        role: "user",
+        parts
+      }
+    ],
+    config: {
+      responseModalities: ["TEXT", "IMAGE"]
     }
   });
 
-  const generatedImage = interaction.output_image;
+  const responseParts =
+    response?.candidates?.[0]?.content?.parts || [];
 
-  if (!generatedImage?.data) {
-    throw new Error(
-      "The Gemini API did not return an image."
-    );
+  const imagePart = responseParts.find(
+    (part) => part?.inlineData?.data
+  );
+
+  if (!imagePart) {
+    throw new Error("The Gemini API did not return an image.");
   }
 
   return {
-    imageBase64: generatedImage.data,
-    mimeType: "image/jpeg",
+    imageBase64: imagePart.inlineData.data,
+    mimeType: imagePart.inlineData.mimeType || "image/png",
     model: IMAGE_MODEL
   };
 }
-```
