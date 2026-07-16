@@ -25,13 +25,14 @@ export function requireActiveSubscription(feature = "chat") {
       if (!userId) {
         return res.status(400).json({
           success: false,
-          error: "User ID missing hai.",
+          error: "User ID is missing.",
           redirectTo: "subscription.html"
         });
       }
 
       /*
-        MongoDB connection check
+        Check the MongoDB connection.
+
         readyState:
         0 = disconnected
         1 = connected
@@ -41,13 +42,14 @@ export function requireActiveSubscription(feature = "chat") {
       if (mongoose.connection.readyState !== 1) {
         return res.status(503).json({
           success: false,
-          error: "MongoDB connect nahi hai. Pehle database connection check karo."
+          error:
+            "MongoDB is not connected. Please check the database connection."
         });
       }
 
       const currentDate = new Date();
 
-      // Expired subscriptions ko expire mark karo
+      // Mark expired subscriptions as expired
       await Subscription.updateMany(
         {
           userId,
@@ -63,7 +65,7 @@ export function requireActiveSubscription(feature = "chat") {
         }
       );
 
-      // Latest active subscription find karo
+      // Find the latest active subscription
       const subscription = await Subscription.findOne({
         userId,
         status: "active",
@@ -75,7 +77,8 @@ export function requireActiveSubscription(feature = "chat") {
       if (!subscription) {
         return res.status(403).json({
           success: false,
-          error: "Active subscription nahi mili. Pehle plan kharidein.",
+          error:
+            "No active subscription was found. Please purchase a plan first.",
           redirectTo: "subscription.html"
         });
       }
@@ -85,7 +88,8 @@ export function requireActiveSubscription(feature = "chat") {
       if (!plan) {
         return res.status(403).json({
           success: false,
-          error: "Plan config nahi mila. Subscription dobara check karein.",
+          error:
+            "The plan configuration was not found. Please check your subscription again.",
           redirectTo: "subscription.html"
         });
       }
@@ -99,7 +103,8 @@ export function requireActiveSubscription(feature = "chat") {
         ) {
           return res.status(403).json({
             success: false,
-            error: "Aapka chat limit complete ho gaya hai. Plan upgrade karein.",
+            error:
+              "Your chat limit has been reached. Please upgrade your plan.",
             redirectTo: "subscription.html",
             plan: plan.id,
             chatLimit,
@@ -115,7 +120,8 @@ export function requireActiveSubscription(feature = "chat") {
         if ((subscription.usedImages || 0) >= imageLimit) {
           return res.status(403).json({
             success: false,
-            error: "Aapka image limit complete ho gaya hai. Plan upgrade karein.",
+            error:
+              "Your image limit has been reached. Please upgrade your plan.",
             redirectTo: "subscription.html",
             plan: plan.id,
             imageLimit,
@@ -136,7 +142,7 @@ export function requireActiveSubscription(feature = "chat") {
 
       return res.status(500).json({
         success: false,
-        error: "Subscription check nahi ho paaya.",
+        error: "Unable to verify the subscription.",
         details: error.message
       });
     }
