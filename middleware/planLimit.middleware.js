@@ -18,13 +18,13 @@ export async function planLimit(req, res, next) {
     if (!userId) {
       return res.status(400).json({
         success: false,
-        error: "User ID nahi mili."
+        error: "User ID was not provided."
       });
     }
 
     const currentDate = new Date();
 
-    // Expired subscriptions ko expired mark karo
+    // Mark expired subscriptions as expired
     await Subscription.updateMany(
       {
         userId,
@@ -40,7 +40,7 @@ export async function planLimit(req, res, next) {
       }
     );
 
-    // Latest active subscription dhundo
+    // Find the latest active subscription
     const subscription = await Subscription.findOne({
       userId,
       status: "active",
@@ -54,7 +54,7 @@ export async function planLimit(req, res, next) {
     if (!subscription) {
       return res.status(403).json({
         success: false,
-        error: "Chat use karne ke liye active subscription zaroori hai."
+        error: "An active subscription is required to use the chat."
       });
     }
 
@@ -63,28 +63,28 @@ export async function planLimit(req, res, next) {
     if (!selectedPlan) {
       return res.status(404).json({
         success: false,
-        error: "Subscription plan available nahi hai."
+        error: "The subscription plan is not available."
       });
     }
 
     const chatUsed = subscription.chatUsed || 0;
 
-    // Basic aur Ultra ki limit check karo
+    // Check the chat limit for Basic and Ultra plans
     if (
       selectedPlan.unlimitedChats !== true &&
       chatUsed >= selectedPlan.chatLimit
     ) {
       return res.status(429).json({
         success: false,
-        error: `${selectedPlan.name} plan ki chat limit poori ho gayi hai.`,
+        error: `The chat limit for the ${selectedPlan.name} plan has been reached.`,
         plan: selectedPlan.id,
         chatLimit: selectedPlan.chatLimit,
         remainingMessages: 0
       });
     }
 
-    // Abhi usage increase nahi hoga
-    // Successful AI reply ke baad controller mein increase hoga
+    // Usage is not increased here
+    // The controller will increase usage after a successful AI response
     req.userId = userId;
     req.subscription = subscription;
     req.selectedPlanName = selectedPlan.id;
@@ -101,7 +101,7 @@ export async function planLimit(req, res, next) {
 
     return res.status(500).json({
       success: false,
-      error: "Chat plan limit check nahi ho payi."
+      error: "Unable to check the chat plan limit."
     });
   }
 }
