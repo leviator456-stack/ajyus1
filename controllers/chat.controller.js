@@ -1,13 +1,13 @@
 import { generateChatReply } from "../services/chat.service.js";
 
-export async function chatController(req, res, next) {
+export async function chatController(req, res) {
   try {
     const { message } = req.body;
 
     if (typeof message !== "string" || !message.trim()) {
       return res.status(400).json({
-        success: false,a
-        error: "enter prompt."
+        success: false,
+        error: "Please enter a prompt."
       });
     }
 
@@ -17,20 +17,19 @@ export async function chatController(req, res, next) {
     if (!selectedPlan || !subscription) {
       return res.status(403).json({
         success: false,
-        error: "Active subscription nahi mili.",
+        error: "An active subscription is required.",
         redirectTo: "subscription.html"
       });
     }
 
     const selectedPlanName = selectedPlan.name;
 
-    // Pehle AI reply generate hogi
     const reply = await generateChatReply(
       message.trim(),
       selectedPlanName
     );
 
-    // Successful reply ke baad hi usage count increase hoga
+    // Increase usage only after a successful AI response
     subscription.usedChats = (subscription.usedChats || 0) + 1;
     await subscription.save();
 
@@ -51,6 +50,13 @@ export async function chatController(req, res, next) {
       reply
     });
   } catch (error) {
-    next(error);
+    // The original Gemini error will only appear in Railway logs
+    console.error("Chat AI API error:", error);
+
+    // Customers will see only this safe message
+    return res.status(503).json({
+      success: false,
+      error: "NO ACTIVE SUBSCRIPTION FOUND BUY A PLAN FIRST ."
+    });
   }
-} 
+}
