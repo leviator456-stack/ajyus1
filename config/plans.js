@@ -2,7 +2,7 @@ export const PLANS = {
   basic: {
     id: "basic",
     name: "Basic",
-    model: "gemini-3.5-flash",
+    model: "gemini-3-flash-preview",
     price: 1999,
     currency: "INR",
     durationDays: 30,
@@ -13,7 +13,7 @@ export const PLANS = {
   ultra: {
     id: "ultra",
     name: "Ultra",
-    model: "gemini-3.5-flash",
+    model: "gemini-3-flash-preview",
     price: 4999,
     currency: "INR",
     durationDays: 30,
@@ -24,7 +24,7 @@ export const PLANS = {
   ultra_pro: {
     id: "ultra_pro",
     name: "Ultra Pro",
-    model: "gemini-3.5-flash",
+    model: "gemini-3-flash-preview", 
     price: 9999,
     currency: "INR",
     durationDays: 30,
