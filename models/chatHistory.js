@@ -33,6 +33,13 @@ const chatHistorySchema = new mongoose.Schema(
       index: true
     },
 
+    userId: {
+      type: String,
+      trim: true,
+      index: true,
+      default: ""
+    },
+
     title: {
       type: String,
       default: "New Chat",
@@ -57,6 +64,11 @@ const chatHistorySchema = new mongoose.Schema(
 
 chatHistorySchema.index({
   sessionId: 1,
+  updatedAt: -1
+});
+
+chatHistorySchema.index({
+  userId: 1,
   updatedAt: -1
 });
 
