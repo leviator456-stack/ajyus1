@@ -9,6 +9,7 @@ import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import chatHistoryRoutes from "./routes/chatHistoryRoutes.js";
 import imageRoutes from "./routes/imageRoutes.js";
+import authRoutes from "./routes/authRoutes.js";
 
 import { errorHandler } from "./middleware/error.middleware.js";
 
@@ -94,6 +95,7 @@ app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/settings", settingsRoutes);
 
 app.use("/api/images", imageRoutes);
+app.use("/api/auth", authRoutes);
 
 /*
   Dono routes rakhe hain taaki old frontend aur new frontend
