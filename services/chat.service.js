@@ -2,7 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import { env } from "../config/env.js";
 import { getPlan } from "../config/plans.js";
 
-const FALLBACK_MODEL = "gemini-2.5-flash-lite";
+const FALLBACK_MODEL = "gemini-3.1-flash-lite";
 const REQUEST_TIMEOUT_MS = 6000;
 
 const SYSTEM_INSTRUCTION = `
