@@ -3,7 +3,7 @@ export const PLANS = {
     id: "basic",
     name: "Basic",
     model: "gemini-3-flash-preview",
-    price: 1,
+    price: 1999,
     currency: "INR",
     durationDays: 30,
     chatLimit: 500,
