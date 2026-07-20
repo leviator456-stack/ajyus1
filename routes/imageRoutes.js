@@ -61,7 +61,7 @@ function imageUploadMiddleware(req, res, next) {
 
 router.post(
   "/generate",
-  requireActiveSubscription("images"),
+  requireActiveSubscription("image"),
   imageUploadMiddleware,
   generateImage
 );
