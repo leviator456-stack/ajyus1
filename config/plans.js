@@ -2,7 +2,7 @@ export const PLANS = {
   basic: {
     id: "basic",
     name: "Basic",
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.5-flash",
     price: 1999,
     currency: "INR",
     durationDays: 30,
@@ -13,7 +13,7 @@ export const PLANS = {
   ultra: {
     id: "ultra",
     name: "Ultra",
-    model: "gemini-3-flash-preview",
+    model: "gemini-3.5-flash",
     price: 4999,
     currency: "INR",
     durationDays: 30,
@@ -24,7 +24,7 @@ export const PLANS = {
   ultra_pro: {
     id: "ultra_pro",
     name: "Ultra Pro",
-    model: "gemini-3-flash-preview", 
+    model: "gemini-3.5-flash",
     price: 9999,
     currency: "INR",
     durationDays: 30,
@@ -38,12 +38,12 @@ export function getPlan(plan) {
 
   const value = String(plan).trim().toLowerCase();
 
-  // Key se search
+  // Search by plan key
   if (PLANS[value]) {
     return PLANS[value];
   }
 
-  // Name se search
+  // Search by plan name
   return (
     Object.values(PLANS).find(
       (p) => p.name.toLowerCase() === value
