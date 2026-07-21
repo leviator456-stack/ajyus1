@@ -1,24 +1,24 @@
 export const VIDEO_PLANS = {
   video_basic: {
     id: "video_basic",
-    name: "Video Basic",
-    price: 499,
+    name: "Basic Aura",
+    price: 4999,
     durationDays: 30,
-    videoLimit: 5
+    videoLimit: 9
   },
 
   video_pro: {
     id: "video_pro",
-    name: "Video Pro",
-    price: 999,
+    name: "Ultra Aura",
+    price: 9999,
     durationDays: 30,
-    videoLimit: 15
+    videoLimit: 20
   },
 
   video_ultra: {
     id: "video_ultra",
-    name: "Video Ultra",
-    price: 1999,
+    name: "UltraPro Aura",
+    price: 19999,
     durationDays: 30,
     videoLimit: 40
   }
