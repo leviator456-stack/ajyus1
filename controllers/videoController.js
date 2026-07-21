@@ -14,7 +14,7 @@ export const generateVideo = async (req, res) => {
       duration = 8
     } = req.body;
 
-    if (!prompt || !prompt.trim()) {
+    if (!prompt || !String(prompt).trim()) {
       return res.status(400).json({
         success: false,
         message: "A video prompt is required."
@@ -29,13 +29,28 @@ export const generateVideo = async (req, res) => {
       });
     }
 
+    const allowedAspectRatios = ["16:9", "9:16"];
+
+    const selectedAspectRatio =
+      allowedAspectRatios.includes(aspectRatio)
+        ? aspectRatio
+        : "16:9";
+
+    const numericDuration = Number(duration);
+    const allowedDurations = [4, 6, 8];
+
+    const selectedDuration =
+      allowedDurations.includes(numericDuration)
+        ? numericDuration
+        : 8;
+
     const videoTask = await createVideoTask({
-      prompt: prompt.trim(),
-      aspectRatio,
-      duration
+      prompt: String(prompt).trim(),
+      aspectRatio: selectedAspectRatio,
+      duration: selectedDuration
     });
 
-    // Increase video usage after Google accepts the generation request
+    // Increase usage after Google accepts the request
     req.subscription.usedVideos =
       (req.subscription.usedVideos || 0) + 1;
 
@@ -56,6 +71,8 @@ export const generateVideo = async (req, res) => {
       message: "Video generation has started.",
       taskId: videoTask.taskId,
       status: videoTask.status,
+      aspectRatio: selectedAspectRatio,
+      duration: selectedDuration,
       usedVideos: req.subscription.usedVideos,
       remainingVideos
     });
@@ -86,12 +103,6 @@ export const getVideoStatus = async (req, res) => {
 
     const videoStatus = await getVideoTaskStatus(taskId);
 
-    /*
-      The frontend calls the same status endpoint with ?download=1
-      after the video is complete.
-
-      This keeps GEMINI_API_KEY hidden on the backend.
-    */
     if (shouldDownload) {
       if (videoStatus.status === "processing") {
         return res.status(409).json({
@@ -122,13 +133,16 @@ export const getVideoStatus = async (req, res) => {
         });
       }
 
-      const videoResponse = await fetch(videoStatus.videoUrl, {
-        method: "GET",
-        headers: {
-          "x-goog-api-key": apiKey
-        },
-        redirect: "follow"
-      });
+      const videoResponse = await fetch(
+        videoStatus.videoUrl,
+        {
+          method: "GET",
+          headers: {
+            "x-goog-api-key": apiKey
+          },
+          redirect: "follow"
+        }
+      );
 
       if (!videoResponse.ok) {
         const errorData = await videoResponse
@@ -155,14 +169,22 @@ export const getVideoStatus = async (req, res) => {
         videoResponse.headers.get("content-length");
 
       res.setHeader("Content-Type", contentType);
+
       res.setHeader(
         "Content-Disposition",
         'inline; filename="ajyus-video.mp4"'
       );
-      res.setHeader("Cache-Control", "private, no-store");
+
+      res.setHeader(
+        "Cache-Control",
+        "private, no-store"
+      );
 
       if (contentLength) {
-        res.setHeader("Content-Length", contentLength);
+        res.setHeader(
+          "Content-Length",
+          contentLength
+        );
       }
 
       const videoStream = Readable.fromWeb(
