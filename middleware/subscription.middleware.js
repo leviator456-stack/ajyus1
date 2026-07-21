@@ -94,13 +94,12 @@ export function requireActiveSubscription(feature = "chat") {
         });
       }
 
+      // Check chat limit
       if (feature === "chat") {
         const chatLimit = plan.chatLimit;
+        const usedChats = subscription.usedChats || 0;
 
-        if (
-          chatLimit !== -1 &&
-          (subscription.usedChats || 0) >= chatLimit
-        ) {
+        if (chatLimit !== -1 && usedChats >= chatLimit) {
           return res.status(403).json({
             success: false,
             error:
@@ -108,16 +107,18 @@ export function requireActiveSubscription(feature = "chat") {
             redirectTo: "subscription.html",
             plan: plan.id,
             chatLimit,
-            usedChats: subscription.usedChats || 0,
+            usedChats,
             remainingMessages: 0
           });
         }
       }
 
-      if (feature === "image") {
+      // Check image limit
+      if (feature === "image" || feature === "images") {
         const imageLimit = plan.imageLimit;
+        const usedImages = subscription.usedImages || 0;
 
-        if ((subscription.usedImages || 0) >= imageLimit) {
+        if (imageLimit !== -1 && usedImages >= imageLimit) {
           return res.status(403).json({
             success: false,
             error:
@@ -125,8 +126,27 @@ export function requireActiveSubscription(feature = "chat") {
             redirectTo: "subscription.html",
             plan: plan.id,
             imageLimit,
-            usedImages: subscription.usedImages || 0,
+            usedImages,
             remainingImages: 0
+          });
+        }
+      }
+
+      // Check video limit
+      if (feature === "video" || feature === "videos") {
+        const videoLimit = plan.videoLimit;
+        const usedVideos = subscription.usedVideos || 0;
+
+        if (videoLimit !== -1 && usedVideos >= videoLimit) {
+          return res.status(403).json({
+            success: false,
+            error:
+              "Your video generation limit has been reached. Please upgrade your plan.",
+            redirectTo: "subscription.html",
+            plan: plan.id,
+            videoLimit,
+            usedVideos,
+            remainingVideos: 0
           });
         }
       }
