@@ -18,7 +18,9 @@ const getApiKey = () => {
 };
 
 const readApiResponse = async (response) => {
-  const data = await response.json().catch(() => ({}));
+  const data = await response
+    .json()
+    .catch(() => ({}));
 
   if (!response.ok) {
     throw new Error(
@@ -34,41 +36,66 @@ const readApiResponse = async (response) => {
 export const createVideoTask = async ({
   prompt,
   aspectRatio = "16:9",
-  duration = 8,
+  duration = 8
 }) => {
   const apiKey = getApiKey();
 
-  const allowedAspectRatios = ["16:9", "9:16"];
-  const selectedAspectRatio = allowedAspectRatios.includes(aspectRatio)
-    ? aspectRatio
-    : "16:9";
+  if (!prompt || !String(prompt).trim()) {
+    throw new Error(
+      "A video prompt is required."
+    );
+  }
 
-  const allowedDurations = [4, 6, 8];
-  const selectedDuration = allowedDurations.includes(Number(duration))
-    ? Number(duration)
-    : 8;
+  const allowedAspectRatios = [
+    "16:9",
+    "9:16"
+  ];
+
+  const selectedAspectRatio =
+    allowedAspectRatios.includes(aspectRatio)
+      ? aspectRatio
+      : "16:9";
+
+  const numericDuration = Number(duration);
+
+  const allowedDurations = [
+    4,
+    6,
+    8
+  ];
+
+  const selectedDuration =
+    allowedDurations.includes(numericDuration)
+      ? numericDuration
+      : 8;
 
   const response = await fetch(
     `${GEMINI_API_BASE}/models/${VIDEO_MODEL}:predictLongRunning`,
     {
       method: "POST",
+
       headers: {
         "Content-Type": "application/json",
-        "x-goog-api-key": apiKey,
+        "x-goog-api-key": apiKey
       },
+
       body: JSON.stringify({
         instances: [
           {
-            prompt,
-          },
+            prompt: String(prompt).trim()
+          }
         ],
+
         parameters: {
           aspectRatio: selectedAspectRatio,
-          durationSeconds: String(selectedDuration),
+
+          // This must be a number, not a string
+          durationSeconds: selectedDuration,
+
           resolution: "720p",
-          numberOfVideos: 1,
-        },
-      }),
+          numberOfVideos: 1
+        }
+      })
     }
   );
 
@@ -82,22 +109,36 @@ export const createVideoTask = async ({
 
   return {
     taskId: data.name,
-    status: data.done ? "completed" : "processing",
+    status: data.done
+      ? "completed"
+      : "processing"
   };
 };
 
-// Check an existing video task
-export const getVideoTaskStatus = async (taskId) => {
+// Check an existing video generation task
+export const getVideoTaskStatus = async (
+  taskId
+) => {
   const apiKey = getApiKey();
-  const cleanTaskId = taskId.replace(/^\/+/, "");
+
+  if (!taskId) {
+    throw new Error(
+      "Video task ID is required."
+    );
+  }
+
+  const cleanTaskId = String(taskId)
+    .trim()
+    .replace(/^\/+/, "");
 
   const response = await fetch(
     `${GEMINI_API_BASE}/${cleanTaskId}`,
     {
       method: "GET",
+
       headers: {
-        "x-goog-api-key": apiKey,
-      },
+        "x-goog-api-key": apiKey
+      }
     }
   );
 
@@ -108,7 +149,8 @@ export const getVideoTaskStatus = async (taskId) => {
       status: "failed",
       videoUrl: null,
       error:
-        data.error.message || "Video generation failed.",
+        data.error.message ||
+        "Video generation failed."
     };
   }
 
@@ -116,14 +158,20 @@ export const getVideoTaskStatus = async (taskId) => {
     return {
       status: "processing",
       videoUrl: null,
-      error: null,
+      error: null
     };
   }
 
   const videoUrl =
-    data?.response?.generateVideoResponse
-      ?.generatedSamples?.[0]?.video?.uri ||
-    data?.response?.generatedVideos?.[0]?.video?.uri ||
+    data?.response
+      ?.generateVideoResponse
+      ?.generatedSamples?.[0]
+      ?.video?.uri ||
+
+    data?.response
+      ?.generatedVideos?.[0]
+      ?.video?.uri ||
+
     null;
 
   if (!videoUrl) {
@@ -131,13 +179,13 @@ export const getVideoTaskStatus = async (taskId) => {
       status: "failed",
       videoUrl: null,
       error:
-        "The video was completed, but its URL was not returned.",
+        "The video was completed, but its URL was not returned."
     };
   }
 
   return {
     status: "completed",
     videoUrl,
-    error: null,
+    error: null
   };
 };
