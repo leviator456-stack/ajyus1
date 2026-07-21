@@ -88,12 +88,8 @@ export const createVideoTask = async ({
 
         parameters: {
           aspectRatio: selectedAspectRatio,
-
-          // This must be a number, not a string
           durationSeconds: selectedDuration,
-
-          resolution: "720p",
-          numberOfVideos: 1
+          resolution: "720p"
         }
       })
     }
