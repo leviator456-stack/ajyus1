@@ -30,7 +30,7 @@ export const requireVideoSubscription = async (
 
     const now = new Date();
 
-    // Purani active subscription expire karo
+    // Expire old video subscriptions
     await VideoSubscription.updateMany(
       {
         userId,
@@ -46,21 +46,23 @@ export const requireVideoSubscription = async (
       }
     );
 
-    // Latest active video subscription find karo
-    const subscription = await VideoSubscription.findOne({
-      userId,
-      status: "active",
-      endDate: {
-        $gt: now
-      }
-    }).sort({
-      createdAt: -1
-    });
+    // Find the latest active video subscription
+    const subscription =
+      await VideoSubscription.findOne({
+        userId,
+        status: "active",
+        endDate: {
+          $gt: now
+        }
+      }).sort({
+        createdAt: -1
+      });
 
     if (!subscription) {
       return res.status(403).json({
         success: false,
-        message: "An active video subscription is required.",
+        message:
+          "An active video subscription is required.",
         redirectTo: "video.html",
         requiresVideoSubscription: true
       });
@@ -73,18 +75,27 @@ export const requireVideoSubscription = async (
     if (!selectedPlan) {
       return res.status(403).json({
         success: false,
-        message: "The selected video plan is invalid.",
+        message:
+          "The selected video plan is invalid.",
         redirectTo: "video.html"
       });
     }
 
+    // Apply the limit only when starting a new video
+    const isVideoGenerationRequest =
+      req.method === "POST" &&
+      req.path === "/generate";
+
     if (
+      isVideoGenerationRequest &&
       selectedPlan.videoLimit !== -1 &&
-      subscription.usedVideos >= selectedPlan.videoLimit
+      subscription.usedVideos >=
+        selectedPlan.videoLimit
     ) {
       return res.status(403).json({
         success: false,
-        message: "Your video generation limit has been reached.",
+        message:
+          "Your video generation limit has been reached.",
         redirectTo: "video.html",
         limitReached: true
       });
@@ -102,7 +113,8 @@ export const requireVideoSubscription = async (
 
     return res.status(500).json({
       success: false,
-      message: "Unable to verify the video subscription."
+      message:
+        "Unable to verify the video subscription."
     });
   }
 };
