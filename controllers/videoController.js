@@ -9,7 +9,7 @@ export const generateVideo = async (req, res) => {
     const {
       prompt,
       aspectRatio = "16:9",
-      duration = 5,
+      duration = 8,
     } = req.body;
 
     if (!prompt || !prompt.trim()) {
