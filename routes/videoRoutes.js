@@ -4,7 +4,7 @@ import {
   getVideoStatus,
 } from "../controllers/videoController.js";
 
-import { requireActiveSubscription } from "../middleware/requireActiveSubscription.js";
+import { requireActiveSubscription } from "../middleware/subscription.middleware.js";
 
 const router = express.Router();
 
