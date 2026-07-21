@@ -21,15 +21,30 @@ export const generateVideo = async (req, res) => {
       });
     }
 
-    if (!req.subscription || !req.selectedPlan) {
+    // Check separate video subscription
+    if (
+      !req.videoSubscription ||
+      !req.selectedVideoPlan
+    ) {
       return res.status(403).json({
         success: false,
-        message: "An active subscription is required.",
-        redirectTo: "subscription.html"
+        message:
+          "An active video subscription is required.",
+        redirectTo: "video.html",
+        requiresVideoSubscription: true
       });
     }
 
-    const allowedAspectRatios = ["16:9", "9:16"];
+    const subscription =
+      req.videoSubscription;
+
+    const selectedPlan =
+      req.selectedVideoPlan;
+
+    const allowedAspectRatios = [
+      "16:9",
+      "9:16"
+    ];
 
     const selectedAspectRatio =
       allowedAspectRatios.includes(aspectRatio)
@@ -37,7 +52,12 @@ export const generateVideo = async (req, res) => {
         : "16:9";
 
     const numericDuration = Number(duration);
-    const allowedDurations = [4, 6, 8];
+
+    const allowedDurations = [
+      4,
+      6,
+      8
+    ];
 
     const selectedDuration =
       allowedDurations.includes(numericDuration)
@@ -50,34 +70,41 @@ export const generateVideo = async (req, res) => {
       duration: selectedDuration
     });
 
-    // Increase usage after Google accepts the request
-    req.subscription.usedVideos =
-      (req.subscription.usedVideos || 0) + 1;
+    // Increase separate video plan usage
+    subscription.usedVideos =
+      (subscription.usedVideos || 0) + 1;
 
-    await req.subscription.save();
+    await subscription.save();
 
-    const videoLimit = req.selectedPlan.videoLimit;
+    const videoLimit =
+      selectedPlan.videoLimit;
 
     const remainingVideos =
       videoLimit === -1
         ? -1
         : Math.max(
-            videoLimit - req.subscription.usedVideos,
+            videoLimit -
+              subscription.usedVideos,
             0
           );
 
     return res.status(202).json({
       success: true,
-      message: "Video generation has started.",
+      message:
+        "Video generation has started.",
       taskId: videoTask.taskId,
       status: videoTask.status,
       aspectRatio: selectedAspectRatio,
       duration: selectedDuration,
-      usedVideos: req.subscription.usedVideos,
+      usedVideos:
+        subscription.usedVideos,
       remainingVideos
     });
   } catch (error) {
-    console.error("Video generation error:", error);
+    console.error(
+      "Video generation error:",
+      error
+    );
 
     return res.status(500).json({
       success: false,
@@ -89,25 +116,35 @@ export const generateVideo = async (req, res) => {
 };
 
 // Check video generation status or securely download the video
-export const getVideoStatus = async (req, res) => {
+export const getVideoStatus = async (
+  req,
+  res
+) => {
   try {
     const { taskId } = req.params;
-    const shouldDownload = req.query.download === "1";
+
+    const shouldDownload =
+      req.query.download === "1";
 
     if (!taskId) {
       return res.status(400).json({
         success: false,
-        message: "Video task ID is required."
+        message:
+          "Video task ID is required."
       });
     }
 
-    const videoStatus = await getVideoTaskStatus(taskId);
+    const videoStatus =
+      await getVideoTaskStatus(taskId);
 
     if (shouldDownload) {
-      if (videoStatus.status === "processing") {
+      if (
+        videoStatus.status === "processing"
+      ) {
         return res.status(409).json({
           success: false,
-          message: "The video is still being generated."
+          message:
+            "The video is still being generated."
         });
       }
 
@@ -123,7 +160,8 @@ export const getVideoStatus = async (req, res) => {
         });
       }
 
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey =
+        process.env.GEMINI_API_KEY;
 
       if (!apiKey) {
         return res.status(500).json({
@@ -145,9 +183,10 @@ export const getVideoStatus = async (req, res) => {
       );
 
       if (!videoResponse.ok) {
-        const errorData = await videoResponse
-          .json()
-          .catch(() => ({}));
+        const errorData =
+          await videoResponse
+            .json()
+            .catch(() => ({}));
 
         throw new Error(
           errorData?.error?.message ||
@@ -162,13 +201,19 @@ export const getVideoStatus = async (req, res) => {
       }
 
       const contentType =
-        videoResponse.headers.get("content-type") ||
-        "video/mp4";
+        videoResponse.headers.get(
+          "content-type"
+        ) || "video/mp4";
 
       const contentLength =
-        videoResponse.headers.get("content-length");
+        videoResponse.headers.get(
+          "content-length"
+        );
 
-      res.setHeader("Content-Type", contentType);
+      res.setHeader(
+        "Content-Type",
+        contentType
+      );
 
       res.setHeader(
         "Content-Disposition",
@@ -187,20 +232,24 @@ export const getVideoStatus = async (req, res) => {
         );
       }
 
-      const videoStream = Readable.fromWeb(
-        videoResponse.body
-      );
-
-      videoStream.on("error", (streamError) => {
-        console.error(
-          "Video streaming error:",
-          streamError
+      const videoStream =
+        Readable.fromWeb(
+          videoResponse.body
         );
 
-        if (!res.destroyed) {
-          res.destroy(streamError);
+      videoStream.on(
+        "error",
+        (streamError) => {
+          console.error(
+            "Video streaming error:",
+            streamError
+          );
+
+          if (!res.destroyed) {
+            res.destroy(streamError);
+          }
         }
-      });
+      );
 
       videoStream.pipe(res);
       return;
@@ -211,12 +260,17 @@ export const getVideoStatus = async (req, res) => {
       taskId,
       status: videoStatus.status,
       videoReady:
-        videoStatus.status === "completed" &&
+        videoStatus.status ===
+          "completed" &&
         Boolean(videoStatus.videoUrl),
-      error: videoStatus.error || null
+      error:
+        videoStatus.error || null
     });
   } catch (error) {
-    console.error("Video status error:", error);
+    console.error(
+      "Video status error:",
+      error
+    );
 
     if (res.headersSent) {
       return res.destroy(error);
