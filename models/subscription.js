@@ -65,6 +65,11 @@ const subscriptionSchema = new mongoose.Schema(
     usedImages: {
       type: Number,
       default: 0
+    },
+
+    usedVideos: {
+      type: Number,
+      default: 0
     }
   },
   {
