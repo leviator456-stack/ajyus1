@@ -3,7 +3,9 @@ import { env } from "../config/env.js";
 import { getPlan } from "../config/plans.js";
 
 const FALLBACK_MODEL = "gemini-3.1-flash-lite";
-const REQUEST_TIMEOUT_MS = 6000;
+
+const TEXT_REQUEST_TIMEOUT_MS = 30000;
+const FILE_REQUEST_TIMEOUT_MS = 60000;
 
 const SYSTEM_INSTRUCTION = `
 You are AJYUS, a helpful AI assistant.
@@ -29,8 +31,13 @@ function isRetryableError(error) {
       0
   );
 
-  const code = String(error?.code || "").toUpperCase();
-  const message = String(error?.message || "").toLowerCase();
+  const code = String(
+    error?.code || ""
+  ).toUpperCase();
+
+  const message = String(
+    error?.message || ""
+  ).toLowerCase();
 
   return (
     code === "AJYUS_TIMEOUT" ||
@@ -52,7 +59,9 @@ function isAuthenticationError(error) {
       0
   );
 
-  const message = String(error?.message || "").toLowerCase();
+  const message = String(
+    error?.message || ""
+  ).toLowerCase();
 
   return (
     status === 401 ||
@@ -62,19 +71,25 @@ function isAuthenticationError(error) {
   );
 }
 
-async function withTimeout(promise, timeoutMs, model) {
+async function withTimeout(
+  promise,
+  timeoutMs,
+  model
+) {
   let timeoutId;
 
-  const timeoutPromise = new Promise((_, reject) => {
-    timeoutId = setTimeout(() => {
-      const error = new Error(
-        `Gemini model ${model} request timed out.`
-      );
+  const timeoutPromise = new Promise(
+    (_, reject) => {
+      timeoutId = setTimeout(() => {
+        const error = new Error(
+          `Gemini model ${model} request timed out.`
+        );
 
-      error.code = "AJYUS_TIMEOUT";
-      reject(error);
-    }, timeoutMs);
-  });
+        error.code = "AJYUS_TIMEOUT";
+        reject(error);
+      }, timeoutMs);
+    }
+  );
 
   try {
     return await Promise.race([
@@ -86,18 +101,105 @@ async function withTimeout(promise, timeoutMs, model) {
   }
 }
 
-async function requestGeminiReply(ai, model, message) {
+function getValidUploadedFiles(uploadedFiles) {
+  if (!Array.isArray(uploadedFiles)) {
+    return [];
+  }
+
+  return uploadedFiles.filter((file) => {
+    return (
+      file &&
+      Buffer.isBuffer(file.buffer) &&
+      typeof file.mimetype === "string" &&
+      file.mimetype.trim()
+    );
+  });
+}
+
+function buildInteractionInput(
+  message,
+  uploadedFiles
+) {
+  const validFiles =
+    getValidUploadedFiles(uploadedFiles);
+
+  if (!validFiles.length) {
+    return message;
+  }
+
+  const fileInputs = validFiles.map(
+    (file) => {
+      const mimeType =
+        file.mimetype.trim();
+
+      return {
+        type: mimeType.startsWith("image/")
+          ? "image"
+          : "document",
+
+        data: file.buffer.toString(
+          "base64"
+        ),
+
+        mime_type: mimeType
+      };
+    }
+  );
+
+  const fileNames = validFiles
+    .map((file, index) => {
+      return (
+        file.originalname ||
+        `attachment-${index + 1}`
+      );
+    })
+    .join(", ");
+
+  return [
+    ...fileInputs,
+
+    {
+      type: "text",
+
+      text:
+        `${message}\n\n` +
+        `The user attached these files: ${fileNames}. ` +
+        "Use the attached files when answering the request."
+    }
+  ];
+}
+
+async function requestGeminiReply(
+  ai,
+  model,
+  message,
+  uploadedFiles = []
+) {
+  const validFiles =
+    getValidUploadedFiles(uploadedFiles);
+
   const interaction = await withTimeout(
     ai.interactions.create({
       model,
-      input: message,
-      system_instruction: SYSTEM_INSTRUCTION
+
+      input: buildInteractionInput(
+        message,
+        validFiles
+      ),
+
+      system_instruction:
+        SYSTEM_INSTRUCTION
     }),
-    REQUEST_TIMEOUT_MS,
+
+    validFiles.length
+      ? FILE_REQUEST_TIMEOUT_MS
+      : TEXT_REQUEST_TIMEOUT_MS,
+
     model
   );
 
-  const reply = interaction.output_text?.trim();
+  const reply =
+    interaction.output_text?.trim();
 
   if (!reply) {
     throw new Error(
@@ -112,6 +214,7 @@ async function requestWithRetry(
   ai,
   model,
   message,
+  uploadedFiles,
   maximumAttempts
 ) {
   let lastError;
@@ -125,7 +228,8 @@ async function requestWithRetry(
       return await requestGeminiReply(
         ai,
         model,
-        message
+        message,
+        uploadedFiles
       );
     } catch (error) {
       lastError = error;
@@ -151,13 +255,16 @@ async function requestWithRetry(
 
 export async function generateChatReply(
   message,
-  planName = "free"
+  planName = "free",
+  uploadedFiles = []
 ) {
   if (
     typeof message !== "string" ||
     !message.trim()
   ) {
-    throw new Error("A message is required.");
+    throw new Error(
+      "A message is required."
+    );
   }
 
   if (!env.geminiApiKey) {
@@ -166,7 +273,8 @@ export async function generateChatReply(
     );
   }
 
-  const selectedPlan = getPlan(planName);
+  const selectedPlan =
+    getPlan(planName);
 
   if (!selectedPlan?.model) {
     throw new Error(
@@ -178,18 +286,29 @@ export async function generateChatReply(
     apiKey: env.geminiApiKey
   });
 
-  const cleanMessage = message.trim();
-  const primaryModel = selectedPlan.model;
+  const cleanMessage =
+    message.trim();
+
+  const validFiles =
+    getValidUploadedFiles(uploadedFiles);
+
+  const primaryModel =
+    selectedPlan.model;
 
   try {
     return await requestWithRetry(
       ai,
       primaryModel,
       cleanMessage,
+      validFiles,
       2
     );
   } catch (primaryError) {
-    if (isAuthenticationError(primaryError)) {
+    if (
+      isAuthenticationError(
+        primaryError
+      )
+    ) {
       throw primaryError;
     }
 
@@ -203,6 +322,7 @@ export async function generateChatReply(
         ai,
         FALLBACK_MODEL,
         cleanMessage,
+        validFiles,
         1
       );
     } catch (fallbackError) {
@@ -211,11 +331,13 @@ export async function generateChatReply(
         fallbackError
       );
 
-      const temporaryError = new Error(
-        "AJYUS is temporarily busy. Please try again in a moment."
-      );
+      const temporaryError =
+        new Error(
+          "AJYUS is temporarily busy. Please try again in a moment."
+        );
 
       temporaryError.statusCode = 503;
+
       throw temporaryError;
     }
   }
