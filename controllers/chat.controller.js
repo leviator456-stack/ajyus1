@@ -2,12 +2,20 @@ import { generateChatReply } from "../services/chat.service.js";
 
 export async function chatController(req, res) {
   try {
-    const { message } = req.body;
+    const message =
+      typeof req.body?.message === "string"
+        ? req.body.message.trim()
+        : "";
 
-    if (typeof message !== "string" || !message.trim()) {
+    const uploadedFiles =
+      Array.isArray(req.files)
+        ? req.files
+        : [];
+
+    if (!message && uploadedFiles.length === 0) {
       return res.status(400).json({
         success: false,
-        error: "Please enter a prompt."
+        error: "Please enter a prompt or upload a file."
       });
     }
 
@@ -22,23 +30,35 @@ export async function chatController(req, res) {
       });
     }
 
-    const selectedPlanName = selectedPlan.name;
+    const selectedPlanName =
+      selectedPlan.name;
+
+    const finalMessage =
+      message ||
+      "Please analyze the attached file and explain its contents.";
 
     const reply = await generateChatReply(
-      message.trim(),
-      selectedPlanName
+      finalMessage,
+      selectedPlanName,
+      uploadedFiles
     );
 
     // Increase usage only after a successful AI response
-    subscription.usedChats = (subscription.usedChats || 0) + 1;
+    subscription.usedChats =
+      (subscription.usedChats || 0) + 1;
+
     await subscription.save();
 
-    const usedChats = subscription.usedChats || 0;
+    const usedChats =
+      subscription.usedChats || 0;
 
     const remainingMessages =
       selectedPlan.chatLimit === -1
         ? -1
-        : Math.max(selectedPlan.chatLimit - usedChats, 0);
+        : Math.max(
+            selectedPlan.chatLimit - usedChats,
+            0
+          );
 
     return res.status(200).json({
       success: true,
@@ -47,16 +67,29 @@ export async function chatController(req, res) {
       usedChats,
       chatLimit: selectedPlan.chatLimit,
       remainingMessages,
+      uploadedFiles: uploadedFiles.map(
+        file => ({
+          name: file.originalname,
+          type: file.mimetype,
+          size: file.size
+        })
+      ),
       reply
     });
   } catch (error) {
-    // The original Gemini error will only appear in Railway logs
-    console.error("Chat AI API error:", error);
+    console.error(
+      "Chat AI API error:",
+      error
+    );
 
-    // Customers will see only this safe message
-    return res.status(503).json({
+    return res.status(
+      error.statusCode || 503
+    ).json({
       success: false,
-      error: "AI service is temporarily unavailable. Please try again shortly."
+      error:
+        error.statusCode === 400
+          ? error.message
+          : "AI service is temporarily unavailable. Please try again shortly."
     });
   }
 }
