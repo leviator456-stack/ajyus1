@@ -1,10 +1,6 @@
-import {
-  generateChatReplyStream
-} from "../services/chat.service.js";
+import { generateChatReply } from "../services/chat.service.js";
 
 export async function chatController(req, res) {
-  let streamStarted = false;
-
   try {
     const message =
       typeof req.body?.message === "string"
@@ -16,33 +12,21 @@ export async function chatController(req, res) {
         ? req.files
         : [];
 
-    if (
-      !message &&
-      uploadedFiles.length === 0
-    ) {
+    if (!message && uploadedFiles.length === 0) {
       return res.status(400).json({
         success: false,
-        error:
-          "Please enter a prompt or upload a file."
+        error: "Please enter a prompt or upload a file."
       });
     }
 
-    const selectedPlan =
-      req.selectedPlan;
+    const selectedPlan = req.selectedPlan;
+    const subscription = req.subscription;
 
-    const subscription =
-      req.subscription;
-
-    if (
-      !selectedPlan ||
-      !subscription
-    ) {
+    if (!selectedPlan || !subscription) {
       return res.status(403).json({
         success: false,
-        error:
-          "An active subscription is required.",
-        redirectTo:
-          "subscription.html"
+        error: "An active subscription is required.",
+        redirectTo: "subscription.html"
       });
     }
 
@@ -53,126 +37,55 @@ export async function chatController(req, res) {
       message ||
       "Please analyze the attached file and explain its contents.";
 
-    /*
-     * Tell the browser that this response
-     * will arrive in small live text chunks.
-     */
-    res.status(200);
-
-    res.setHeader(
-      "Content-Type",
-      "text/plain; charset=utf-8"
-    );
-
-    res.setHeader(
-      "Cache-Control",
-      "no-cache, no-transform"
-    );
-
-    res.setHeader(
-      "Connection",
-      "keep-alive"
-    );
-
-    res.setHeader(
-      "X-Accel-Buffering",
-      "no"
-    );
-
-    if (res.socket) {
-      res.socket.setNoDelay(true);
-    }
-
-    if (
-      typeof res.flushHeaders ===
-      "function"
-    ) {
-      res.flushHeaders();
-    }
-
-    streamStarted = true;
-
-    await generateChatReplyStream(
+    const reply = await generateChatReply(
       finalMessage,
       selectedPlanName,
-      uploadedFiles,
-
-      async (textChunk) => {
-        if (
-          !textChunk ||
-          res.destroyed ||
-          res.writableEnded
-        ) {
-          return;
-        }
-
-        res.write(textChunk);
-
-        /*
-         * Some Express compression setups
-         * provide res.flush().
-         */
-        if (
-          typeof res.flush ===
-          "function"
-        ) {
-          res.flush();
-        }
-      }
+      uploadedFiles
     );
 
-    /*
-     * Increase usage only after the AI
-     * successfully completes its answer.
-     */
-    try {
-      subscription.usedChats =
-        (subscription.usedChats || 0) + 1;
+    // Increase usage only after a successful AI response
+    subscription.usedChats =
+      (subscription.usedChats || 0) + 1;
 
-      await subscription.save();
-    } catch (usageError) {
-      console.error(
-        "Chat usage update error:",
-        usageError
-      );
-    }
+    await subscription.save();
 
-    if (!res.writableEnded) {
-      res.end();
-    }
+    const usedChats =
+      subscription.usedChats || 0;
+
+    const remainingMessages =
+      selectedPlan.chatLimit === -1
+        ? -1
+        : Math.max(
+            selectedPlan.chatLimit - usedChats,
+            0
+          );
+
+    return res.status(200).json({
+      success: true,
+      plan: selectedPlanName,
+      planId: selectedPlan.id,
+      usedChats,
+      chatLimit: selectedPlan.chatLimit,
+      remainingMessages,
+      uploadedFiles: uploadedFiles.map(
+        file => ({
+          name: file.originalname,
+          type: file.mimetype,
+          size: file.size
+        })
+      ),
+      reply
+    });
   } catch (error) {
     console.error(
-      "Chat AI streaming error:",
+      "Chat AI API error:",
       error
     );
-
-    /*
-     * When some text has already reached
-     * the browser, JSON cannot be returned.
-     */
-    if (
-      streamStarted ||
-      res.headersSent
-    ) {
-      if (
-        !res.destroyed &&
-        !res.writableEnded
-      ) {
-        res.write(
-          "\n\nAJYUS could not complete this response. Please try again."
-        );
-
-        res.end();
-      }
-
-      return;
-    }
 
     return res.status(
       error.statusCode || 503
     ).json({
       success: false,
-
       error:
         error.statusCode === 400
           ? error.message
