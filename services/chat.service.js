@@ -342,3 +342,228 @@ export async function generateChatReply(
     }
   }
 }
+
+async function requestGeminiStream(
+  ai,
+  model,
+  message,
+  uploadedFiles = [],
+  onChunk
+) {
+  const validFiles =
+    getValidUploadedFiles(uploadedFiles);
+
+  let hasStreamedOutput = false;
+  let completeReply = "";
+
+  try {
+    const stream = await withTimeout(
+      ai.interactions.create({
+        model,
+
+        input: buildInteractionInput(
+          message,
+          validFiles
+        ),
+
+        system_instruction:
+          SYSTEM_INSTRUCTION,
+
+        stream: true
+      }),
+
+      validFiles.length
+        ? FILE_REQUEST_TIMEOUT_MS
+        : TEXT_REQUEST_TIMEOUT_MS,
+
+      model
+    );
+
+    for await (const event of stream) {
+      if (event?.event_type === "error") {
+        throw new Error(
+          event?.error?.message ||
+            "AJYUS streaming request failed."
+        );
+      }
+
+      if (
+        event?.event_type !== "step.delta" ||
+        event?.delta?.type !== "text"
+      ) {
+        continue;
+      }
+
+      const textChunk =
+        typeof event.delta.text === "string"
+          ? event.delta.text
+          : "";
+
+      if (!textChunk) {
+        continue;
+      }
+
+      hasStreamedOutput = true;
+      completeReply += textChunk;
+
+      await onChunk(textChunk);
+    }
+
+    if (!completeReply.trim()) {
+      throw new Error(
+        "Gemini returned an empty streaming response."
+      );
+    }
+
+    return completeReply.trim();
+  } catch (error) {
+    error.hasStreamedOutput =
+      hasStreamedOutput;
+
+    throw error;
+  }
+}
+
+async function requestStreamWithRetry(
+  ai,
+  model,
+  message,
+  uploadedFiles,
+  onChunk,
+  maximumAttempts
+) {
+  let lastError;
+
+  for (
+    let attempt = 1;
+    attempt <= maximumAttempts;
+    attempt += 1
+  ) {
+    try {
+      return await requestGeminiStream(
+        ai,
+        model,
+        message,
+        uploadedFiles,
+        onChunk
+      );
+    } catch (error) {
+      lastError = error;
+
+      if (
+        error?.hasStreamedOutput ||
+        !isRetryableError(error) ||
+        attempt === maximumAttempts
+      ) {
+        throw error;
+      }
+
+      console.warn(
+        `Gemini streaming model ${model} failed. ` +
+          `Retrying attempt ${attempt + 1}.`
+      );
+
+      await wait(500);
+    }
+  }
+
+  throw lastError;
+}
+
+export async function generateChatReplyStream(
+  message,
+  planName = "free",
+  uploadedFiles = [],
+  onChunk
+) {
+  if (
+    typeof message !== "string" ||
+    !message.trim()
+  ) {
+    throw new Error(
+      "A message is required."
+    );
+  }
+
+  if (typeof onChunk !== "function") {
+    throw new Error(
+      "A streaming callback is required."
+    );
+  }
+
+  if (!env.geminiApiKey) {
+    throw new Error(
+      "The Gemini API key is not configured."
+    );
+  }
+
+  const selectedPlan =
+    getPlan(planName);
+
+  if (!selectedPlan?.model) {
+    throw new Error(
+      "A valid subscription plan was not found."
+    );
+  }
+
+  const ai = new GoogleGenAI({
+    apiKey: env.geminiApiKey
+  });
+
+  const cleanMessage =
+    message.trim();
+
+  const validFiles =
+    getValidUploadedFiles(uploadedFiles);
+
+  const primaryModel =
+    selectedPlan.model;
+
+  try {
+    return await requestStreamWithRetry(
+      ai,
+      primaryModel,
+      cleanMessage,
+      validFiles,
+      onChunk,
+      2
+    );
+  } catch (primaryError) {
+    if (
+      isAuthenticationError(primaryError) ||
+      primaryError?.hasStreamedOutput
+    ) {
+      throw primaryError;
+    }
+
+    console.warn(
+      `Switching streaming from ${primaryModel} ` +
+        `to ${FALLBACK_MODEL}.`
+    );
+
+    try {
+      return await requestStreamWithRetry(
+        ai,
+        FALLBACK_MODEL,
+        cleanMessage,
+        validFiles,
+        onChunk,
+        1
+      );
+    } catch (fallbackError) {
+      console.error(
+        "Gemini streaming primary and fallback models failed:",
+        fallbackError
+      );
+
+      const temporaryError =
+        new Error(
+          "AJYUS is temporarily busy. Please try again in a moment."
+        );
+
+      temporaryError.statusCode = 503;
+
+      throw temporaryError;
+    }
+  }
+}
