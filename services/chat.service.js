@@ -7,6 +7,8 @@ const FALLBACK_MODEL = "gemini-3.1-flash-lite";
 const TEXT_REQUEST_TIMEOUT_MS = 30000;
 const FILE_REQUEST_TIMEOUT_MS = 60000;
 
+const RETRY_DELAY_MS = 500;
+
 const SYSTEM_INSTRUCTION = `
 You are AJYUS, a helpful AI assistant.
 Answer clearly, accurately, and professionally.
@@ -17,19 +19,28 @@ If the user asks which model or provider powers you, reply:
 "I am AJYUS, an AI assistant. Technical provider details are not displayed in the chat interface."
 `;
 
+const GENERATION_CONFIG = {
+  // Keeps normal chat responses fast while preserving good answer quality.
+  thinking_level: "low"
+};
+
 function wait(milliseconds) {
   return new Promise((resolve) => {
     setTimeout(resolve, milliseconds);
   });
 }
 
-function isRetryableError(error) {
-  const status = Number(
+function getErrorStatus(error) {
+  return Number(
     error?.status ??
       error?.statusCode ??
       error?.response?.status ??
       0
   );
+}
+
+function isRetryableError(error) {
+  const status = getErrorStatus(error);
 
   const code = String(
     error?.code || ""
@@ -47,17 +58,14 @@ function isRetryableError(error) {
     message.includes("temporarily unavailable") ||
     message.includes("timeout") ||
     message.includes("timed out") ||
-    message.includes("network")
+    message.includes("network") ||
+    message.includes("fetch failed") ||
+    message.includes("connection")
   );
 }
 
 function isAuthenticationError(error) {
-  const status = Number(
-    error?.status ??
-      error?.statusCode ??
-      error?.response?.status ??
-      0
-  );
+  const status = getErrorStatus(error);
 
   const message = String(
     error?.message || ""
@@ -67,8 +75,19 @@ function isAuthenticationError(error) {
     status === 401 ||
     status === 403 ||
     message.includes("api key") ||
-    message.includes("authentication")
+    message.includes("authentication") ||
+    message.includes("permission denied")
   );
+}
+
+function createTimeoutError(model) {
+  const error = new Error(
+    `Gemini model ${model} request timed out.`
+  );
+
+  error.code = "AJYUS_TIMEOUT";
+
+  return error;
 }
 
 async function withTimeout(
@@ -81,12 +100,7 @@ async function withTimeout(
   const timeoutPromise = new Promise(
     (_, reject) => {
       timeoutId = setTimeout(() => {
-        const error = new Error(
-          `Gemini model ${model} request timed out.`
-        );
-
-        error.code = "AJYUS_TIMEOUT";
-        reject(error);
+        reject(createTimeoutError(model));
       }, timeoutMs);
     }
   );
@@ -116,6 +130,22 @@ function getValidUploadedFiles(uploadedFiles) {
   });
 }
 
+function getInteractionFileType(mimeType) {
+  if (mimeType.startsWith("image/")) {
+    return "image";
+  }
+
+  if (mimeType.startsWith("audio/")) {
+    return "audio";
+  }
+
+  if (mimeType.startsWith("video/")) {
+    return "video";
+  }
+
+  return "document";
+}
+
 function buildInteractionInput(
   message,
   uploadedFiles
@@ -133,9 +163,9 @@ function buildInteractionInput(
         file.mimetype.trim();
 
       return {
-        type: mimeType.startsWith("image/")
-          ? "image"
-          : "document",
+        type: getInteractionFileType(
+          mimeType
+        ),
 
         data: file.buffer.toString(
           "base64"
@@ -169,6 +199,87 @@ function buildInteractionInput(
   ];
 }
 
+function getRequestTimeout(uploadedFiles) {
+  return uploadedFiles.length
+    ? FILE_REQUEST_TIMEOUT_MS
+    : TEXT_REQUEST_TIMEOUT_MS;
+}
+
+function buildInteractionRequest(
+  model,
+  message,
+  uploadedFiles,
+  stream = false
+) {
+  return {
+    model,
+
+    input: buildInteractionInput(
+      message,
+      uploadedFiles
+    ),
+
+    system_instruction:
+      SYSTEM_INSTRUCTION,
+
+    generation_config:
+      GENERATION_CONFIG,
+
+    // AJYUS currently sends each request independently.
+    // This prevents unnecessary server-side conversation storage.
+    store: false,
+
+    ...(stream ? { stream: true } : {})
+  };
+}
+
+function validateChatRequest(
+  message,
+  planName
+) {
+  if (
+    typeof message !== "string" ||
+    !message.trim()
+  ) {
+    throw new Error(
+      "A message is required."
+    );
+  }
+
+  if (!env.geminiApiKey) {
+    throw new Error(
+      "The Gemini API key is not configured."
+    );
+  }
+
+  const selectedPlan =
+    getPlan(planName);
+
+  if (!selectedPlan?.model) {
+    throw new Error(
+      "A valid subscription plan was not found."
+    );
+  }
+
+  return selectedPlan;
+}
+
+function createAIClient() {
+  return new GoogleGenAI({
+    apiKey: env.geminiApiKey
+  });
+}
+
+function createTemporaryBusyError() {
+  const error = new Error(
+    "AJYUS is temporarily busy. Please try again in a moment."
+  );
+
+  error.statusCode = 503;
+
+  return error;
+}
+
 async function requestGeminiReply(
   ai,
   model,
@@ -179,21 +290,16 @@ async function requestGeminiReply(
     getValidUploadedFiles(uploadedFiles);
 
   const interaction = await withTimeout(
-    ai.interactions.create({
-      model,
-
-      input: buildInteractionInput(
+    ai.interactions.create(
+      buildInteractionRequest(
+        model,
         message,
-        validFiles
-      ),
+        validFiles,
+        false
+      )
+    ),
 
-      system_instruction:
-        SYSTEM_INSTRUCTION
-    }),
-
-    validFiles.length
-      ? FILE_REQUEST_TIMEOUT_MS
-      : TEXT_REQUEST_TIMEOUT_MS,
+    getRequestTimeout(validFiles),
 
     model
   );
@@ -246,7 +352,7 @@ async function requestWithRetry(
           `Retrying attempt ${attempt + 1}.`
       );
 
-      await wait(500);
+      await wait(RETRY_DELAY_MS);
     }
   }
 
@@ -258,33 +364,13 @@ export async function generateChatReply(
   planName = "free",
   uploadedFiles = []
 ) {
-  if (
-    typeof message !== "string" ||
-    !message.trim()
-  ) {
-    throw new Error(
-      "A message is required."
-    );
-  }
-
-  if (!env.geminiApiKey) {
-    throw new Error(
-      "The Gemini API key is not configured."
-    );
-  }
-
   const selectedPlan =
-    getPlan(planName);
-
-  if (!selectedPlan?.model) {
-    throw new Error(
-      "A valid subscription plan was not found."
+    validateChatRequest(
+      message,
+      planName
     );
-  }
 
-  const ai = new GoogleGenAI({
-    apiKey: env.geminiApiKey
-  });
+  const ai = createAIClient();
 
   const cleanMessage =
     message.trim();
@@ -312,6 +398,15 @@ export async function generateChatReply(
       throw primaryError;
     }
 
+    if (primaryModel === FALLBACK_MODEL) {
+      console.error(
+        "Gemini model request failed:",
+        primaryError
+      );
+
+      throw createTemporaryBusyError();
+    }
+
     console.warn(
       `Switching from ${primaryModel} ` +
         `to ${FALLBACK_MODEL}.`
@@ -331,16 +426,21 @@ export async function generateChatReply(
         fallbackError
       );
 
-      const temporaryError =
-        new Error(
-          "AJYUS is temporarily busy. Please try again in a moment."
-        );
-
-      temporaryError.statusCode = 503;
-
-      throw temporaryError;
+      throw createTemporaryBusyError();
     }
   }
+}
+
+async function getNextStreamEvent(
+  iterator,
+  timeoutMs,
+  model
+) {
+  return withTimeout(
+    iterator.next(),
+    timeoutMs,
+    model
+  );
 }
 
 async function requestGeminiStream(
@@ -353,38 +453,58 @@ async function requestGeminiStream(
   const validFiles =
     getValidUploadedFiles(uploadedFiles);
 
+  const timeoutMs =
+    getRequestTimeout(validFiles);
+
   let hasStreamedOutput = false;
   let completeReply = "";
 
   try {
     const stream = await withTimeout(
-      ai.interactions.create({
-        model,
-
-        input: buildInteractionInput(
+      ai.interactions.create(
+        buildInteractionRequest(
+          model,
           message,
-          validFiles
-        ),
+          validFiles,
+          true
+        )
+      ),
 
-        system_instruction:
-          SYSTEM_INSTRUCTION,
-
-        stream: true
-      }),
-
-      validFiles.length
-        ? FILE_REQUEST_TIMEOUT_MS
-        : TEXT_REQUEST_TIMEOUT_MS,
+      timeoutMs,
 
       model
     );
 
-    for await (const event of stream) {
+    const iterator =
+      stream[Symbol.asyncIterator]();
+
+    while (true) {
+      // The timeout resets whenever a new stream event arrives.
+      // This also protects AJYUS if the stream freezes midway.
+      const result =
+        await getNextStreamEvent(
+          iterator,
+          timeoutMs,
+          model
+        );
+
+      if (result.done) {
+        break;
+      }
+
+      const event = result.value;
+
       if (event?.event_type === "error") {
-        throw new Error(
+        const streamError = new Error(
           event?.error?.message ||
             "AJYUS streaming request failed."
         );
+
+        streamError.code =
+          event?.error?.code ||
+          "AJYUS_STREAM_ERROR";
+
+        throw streamError;
       }
 
       if (
@@ -450,6 +570,8 @@ async function requestStreamWithRetry(
     } catch (error) {
       lastError = error;
 
+      // Never retry after text has already reached the user.
+      // Retrying at that point would duplicate the response.
       if (
         error?.hasStreamedOutput ||
         !isRetryableError(error) ||
@@ -463,7 +585,7 @@ async function requestStreamWithRetry(
           `Retrying attempt ${attempt + 1}.`
       );
 
-      await wait(500);
+      await wait(RETRY_DELAY_MS);
     }
   }
 
@@ -476,14 +598,11 @@ export async function generateChatReplyStream(
   uploadedFiles = [],
   onChunk
 ) {
-  if (
-    typeof message !== "string" ||
-    !message.trim()
-  ) {
-    throw new Error(
-      "A message is required."
+  const selectedPlan =
+    validateChatRequest(
+      message,
+      planName
     );
-  }
 
   if (typeof onChunk !== "function") {
     throw new Error(
@@ -491,24 +610,7 @@ export async function generateChatReplyStream(
     );
   }
 
-  if (!env.geminiApiKey) {
-    throw new Error(
-      "The Gemini API key is not configured."
-    );
-  }
-
-  const selectedPlan =
-    getPlan(planName);
-
-  if (!selectedPlan?.model) {
-    throw new Error(
-      "A valid subscription plan was not found."
-    );
-  }
-
-  const ai = new GoogleGenAI({
-    apiKey: env.geminiApiKey
-  });
+  const ai = createAIClient();
 
   const cleanMessage =
     message.trim();
@@ -530,10 +632,21 @@ export async function generateChatReplyStream(
     );
   } catch (primaryError) {
     if (
-      isAuthenticationError(primaryError) ||
+      isAuthenticationError(
+        primaryError
+      ) ||
       primaryError?.hasStreamedOutput
     ) {
       throw primaryError;
+    }
+
+    if (primaryModel === FALLBACK_MODEL) {
+      console.error(
+        "Gemini streaming request failed:",
+        primaryError
+      );
+
+      throw createTemporaryBusyError();
     }
 
     console.warn(
@@ -556,14 +669,11 @@ export async function generateChatReplyStream(
         fallbackError
       );
 
-      const temporaryError =
-        new Error(
-          "AJYUS is temporarily busy. Please try again in a moment."
-        );
+      if (fallbackError?.hasStreamedOutput) {
+        throw fallbackError;
+      }
 
-      temporaryError.statusCode = 503;
-
-      throw temporaryError;
+      throw createTemporaryBusyError();
     }
   }
 }
