@@ -12,6 +12,7 @@ import chatHistoryRoutes from "./routes/chatHistoryRoutes.js";
 import imageRoutes from "./routes/imageRoutes.js";
 import videoRoutes from "./routes/videoRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import razorpayWebhookRoutes from "./routes/razorpayWebhookRoutes.js";
 
 import { errorHandler } from "./middleware/error.middleware.js";
 
@@ -43,8 +44,9 @@ app.use(
   cors({
     origin(origin, callback) {
       /*
-        origin undefined tab hota hai jab request same server,
-        Postman, browser direct URL, ya mobile app se aaye.
+        Origin undefined tab hota hai jab request same server,
+        Postman, browser direct URL, mobile app ya Razorpay
+        server se aaye.
       */
       if (!origin) {
         return callback(null, true);
@@ -56,20 +58,54 @@ app.use(
 
       return callback(null, true);
     },
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+
+    methods: [
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+      "OPTIONS"
+    ],
+
     allowedHeaders: [
       "Content-Type",
       "Authorization",
       "X-User-Id",
-      "X-AJYUS-User-Id"
+      "X-AJYUS-User-Id",
+      "X-Razorpay-Signature"
     ],
+
     credentials: true
   })
 );
 
-// Body parser middleware
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+/*
+  Razorpay webhook route.
+
+  IMPORTANT:
+  Is route ko express.json() se pehle hi rehna chahiye,
+  kyunki webhook signature verify karne ke liye raw body
+  ki zarurat hoti hai.
+*/
+app.use(
+  "/api/webhooks/razorpay",
+  razorpayWebhookRoutes
+);
+
+// Normal body parser middleware
+app.use(
+  express.json({
+    limit: "10mb"
+  })
+);
+
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "10mb"
+  })
+);
 
 // Backend health check
 app.get("/api/health", (req, res) => {
@@ -92,28 +128,49 @@ app.get("/api/settings/direct-test", (req, res) => {
 */
 app.use("/api/chat", chatRoutes);
 
-app.use("/api/subscriptions", subscriptionRoutes);
-app.use("/api/subscriptions", subscriptionRoutes);
+app.use(
+  "/api/subscriptions",
+  subscriptionRoutes
+);
 
 app.use(
   "/api/video-subscriptions",
   videoSubscriptionRoutes
 );
 
-app.use("/api/settings", settingsRoutes);
+app.use(
+  "/api/settings",
+  settingsRoutes
+);
 
-app.use("/api/images", imageRoutes);
+app.use(
+  "/api/images",
+  imageRoutes
+);
 
-app.use("/api/videos", videoRoutes);
+app.use(
+  "/api/videos",
+  videoRoutes
+);
 
-app.use("/api/auth", authRoutes);
+app.use(
+  "/api/auth",
+  authRoutes
+);
 
 /*
   Dono routes rakhe hain taaki old frontend aur new frontend
   dono kaam kar sakein.
 */
-app.use("/api/history", chatHistoryRoutes);
-app.use("/api/chat-history", chatHistoryRoutes);
+app.use(
+  "/api/history",
+  chatHistoryRoutes
+);
+
+app.use(
+  "/api/chat-history",
+  chatHistoryRoutes
+);
 
 // Invalid API route
 app.use((req, res) => {
@@ -128,20 +185,30 @@ app.use((req, res) => {
 app.use(errorHandler);
 
 // Start backend server
-const PORT = Number(process.env.PORT || env?.PORT) || 3000;
+const PORT =
+  Number(process.env.PORT || env?.PORT) || 3000;
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`AJYUS backend port ${PORT} par chal raha hai.`);
+  console.log(
+    `AJYUS backend port ${PORT} par chal raha hai.`
+  );
 
   connectDatabase()
     .then((connected) => {
       if (connected) {
-        console.log("MongoDB database successfully connect ho gaya.");
+        console.log(
+          "MongoDB database successfully connect ho gaya."
+        );
       } else {
-        console.error("Server chal raha hai, lekin MongoDB connect nahi hua.");
+        console.error(
+          "Server chal raha hai, lekin MongoDB connect nahi hua."
+        );
       }
     })
     .catch((error) => {
-      console.error("MongoDB background connection error:", error.message);
+      console.error(
+        "MongoDB background connection error:",
+        error.message
+      );
     });
 });
