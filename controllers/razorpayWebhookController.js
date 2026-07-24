@@ -1,13 +1,22 @@
 import crypto from "crypto";
+
 import Subscription from "../models/subscription.js";
+import { PLANS } from "../config/plans.js";
 
-const THIRTY_DAYS_IN_MS =
-  30 * 24 * 60 * 60 * 1000;
+function addDays(date, days) {
+  const result = new Date(date);
 
-const isValidWebhookSignature = (
+  result.setDate(
+    result.getDate() + Number(days || 30)
+  );
+
+  return result;
+}
+
+function isValidWebhookSignature(
   rawBody,
   receivedSignature
-) => {
+) {
   const webhookSecret =
     process.env.RAZORPAY_WEBHOOK_SECRET;
 
@@ -26,7 +35,7 @@ const isValidWebhookSignature = (
   );
 
   const receivedBuffer = Buffer.from(
-    receivedSignature,
+    String(receivedSignature),
     "utf8"
   );
 
@@ -40,15 +49,18 @@ const isValidWebhookSignature = (
     expectedBuffer,
     receivedBuffer
   );
-};
+}
 
-export const handleRazorpayWebhook = async (
+export async function handleRazorpayWebhook(
   req,
   res
-) => {
+) {
   try {
     const webhookSignature =
       req.headers["x-razorpay-signature"];
+
+    const webhookEventId =
+      req.headers["x-razorpay-event-id"];
 
     if (!Buffer.isBuffer(req.body)) {
       console.error(
@@ -97,13 +109,15 @@ export const handleRazorpayWebhook = async (
       payment?.id || null;
 
     console.log(
-      `Razorpay webhook received: ${eventName}`
+      `Razorpay webhook received: ${eventName}`,
+      webhookEventId
+        ? `Event ID: ${webhookEventId}`
+        : ""
     );
 
     /*
-     * Successful payment:
-     * Activate the pending AJYUS subscription.
-     */
+      Successful payment events
+    */
     if (
       eventName === "payment.captured" ||
       eventName === "order.paid"
@@ -129,33 +143,111 @@ export const handleRazorpayWebhook = async (
         return res.status(200).json({
           success: true,
           message:
-            "No matching subscription found."
+            "No matching subscription was found."
         });
       }
 
       /*
-       * Do not extend the subscription again if
-       * verify-payment already activated it.
-       */
-      if (subscription.status !== "active") {
-        const startDate = new Date();
-        const endDate = new Date(
-          startDate.getTime() +
-            THIRTY_DAYS_IN_MS
-        );
+        Subscription pehle se active hai to validity
+        dobara extend nahi hogi.
+      */
+      if (subscription.status === "active") {
+        if (
+          razorpayPaymentId &&
+          !subscription.razorpayPaymentId
+        ) {
+          subscription.razorpayPaymentId =
+            razorpayPaymentId;
 
-        subscription.status = "active";
-        subscription.startDate = startDate;
-        subscription.endDate = endDate;
+          await subscription.save();
+        }
+
+        return res.status(200).json({
+          success: true,
+          alreadyProcessed: true,
+          message:
+            "Subscription is already active."
+        });
       }
 
+      /*
+        Expired ya cancelled purani subscription ko
+        duplicate webhook dobara activate nahi karega.
+
+        Failed payment ke baad captured payment aa sakti
+        hai, isliye failed status allow kiya gaya hai.
+      */
       if (
-        razorpayPaymentId &&
-        !subscription.razorpayPaymentId
+        !["pending", "failed"].includes(
+          subscription.status
+        )
       ) {
+        console.warn(
+          `Webhook ignored for subscription status: ${subscription.status}`
+        );
+
+        return res.status(200).json({
+          success: true,
+          ignored: true,
+          message:
+            "Subscription is not eligible for activation."
+        });
+      }
+
+      const plan =
+        PLANS[subscription.planId];
+
+      if (!plan) {
+        console.error(
+          `Plan configuration not found: ${subscription.planId}`
+        );
+
+        return res.status(500).json({
+          success: false,
+          error:
+            "Subscription plan configuration was not found."
+        });
+      }
+
+      const startDate = new Date();
+
+      const endDate = addDays(
+        startDate,
+        plan.durationDays || 30
+      );
+
+      /*
+        User ka purana active chat/image plan expire karo.
+      */
+      await Subscription.updateMany(
+        {
+          userId: subscription.userId,
+          status: "active",
+
+          _id: {
+            $ne: subscription._id
+          }
+        },
+        {
+          $set: {
+            status: "expired"
+          }
+        }
+      );
+
+      subscription.status = "active";
+
+      if (razorpayPaymentId) {
         subscription.razorpayPaymentId =
           razorpayPaymentId;
       }
+
+      subscription.startDate = startDate;
+      subscription.endDate = endDate;
+
+      subscription.usedChats = 0;
+      subscription.usedImages = 0;
+      subscription.usedVideos = 0;
 
       await subscription.save();
 
@@ -165,15 +257,14 @@ export const handleRazorpayWebhook = async (
 
       return res.status(200).json({
         success: true,
-        message: "Subscription activated."
+        message:
+          "Subscription activated successfully."
       });
     }
 
     /*
-     * Failed payment:
-     * Only mark a pending subscription as failed.
-     * Never deactivate an already active subscription.
-     */
+      Failed payment event
+    */
     if (eventName === "payment.failed") {
       if (razorpayOrderId) {
         await Subscription.findOneAndUpdate(
@@ -182,12 +273,15 @@ export const handleRazorpayWebhook = async (
             status: "pending"
           },
           {
-            status: "failed",
-            ...(razorpayPaymentId
-              ? {
-                  razorpayPaymentId
-                }
-              : {})
+            $set: {
+              status: "failed",
+
+              ...(razorpayPaymentId
+                ? {
+                    razorpayPaymentId
+                  }
+                : {})
+            }
           }
         );
       }
@@ -213,4 +307,4 @@ export const handleRazorpayWebhook = async (
       error: "Webhook processing failed."
     });
   }
-};
+}
