@@ -1,5 +1,5 @@
 import crypto from "crypto";
-import Subscription from "../models/Subscription.js";
+import Subscription from "../models/subscription.js";
 
 const THIRTY_DAYS_IN_MS =
   30 * 24 * 60 * 60 * 1000;
