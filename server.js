@@ -9,7 +9,6 @@ import subscriptionRoutes from "./routes/subscriptionRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import chatHistoryRoutes from "./routes/chatHistoryRoutes.js";
 import imageRoutes from "./routes/imageRoutes.js";
-import videoRoutes from "./routes/videoRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import razorpayWebhookRoutes from "./routes/razorpayWebhookRoutes.js";
 
@@ -144,10 +143,6 @@ app.use(
   imageRoutes
 );
 
-app.use(
-  "/api/videos",
-  videoRoutes
-);
 
 app.use(
   "/api/auth",
