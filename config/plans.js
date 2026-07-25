@@ -7,7 +7,6 @@ export const PLANS = {
     currency: "INR",
     durationDays: 30,
     chatLimit: 500,
-    videoLimit: 3,
     imageLimit: 20
   },
 
@@ -31,7 +30,6 @@ export const PLANS = {
     currency: "INR",
     durationDays: 30,
     chatLimit: 1500,
-    videoLimit: 20,
     imageLimit: 60
   }
 };
