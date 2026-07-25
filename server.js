@@ -6,7 +6,6 @@ import { connectDatabase } from "./config/db.js";
 
 import chatRoutes from "./routes/chat.routes.js";
 import subscriptionRoutes from "./routes/subscriptionRoutes.js";
-import videoSubscriptionRoutes from "./routes/videoSubscriptionRoutes.js";
 import settingsRoutes from "./routes/settingsRoutes.js";
 import chatHistoryRoutes from "./routes/chatHistoryRoutes.js";
 import imageRoutes from "./routes/imageRoutes.js";
@@ -133,10 +132,7 @@ app.use(
   subscriptionRoutes
 );
 
-app.use(
-  "/api/video-subscriptions",
-  videoSubscriptionRoutes
-);
+
 
 app.use(
   "/api/settings",
