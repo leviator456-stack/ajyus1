@@ -11,6 +11,7 @@ import chatHistoryRoutes from "./routes/chatHistoryRoutes.js";
 import imageRoutes from "./routes/imageRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import razorpayWebhookRoutes from "./routes/razorpayWebhookRoutes.js";
+import codeProjectRoutes from "./routes/codeProjectRoutes.js";
 
 import { errorHandler } from "./middleware/error.middleware.js";
 
@@ -125,6 +126,11 @@ app.get("/api/settings/direct-test", (req, res) => {
   Main API routes
 */
 app.use("/api/chat", chatRoutes);
+
+app.use(
+  "/api/code-projects",
+  codeProjectRoutes
+);
 
 app.use(
   "/api/subscriptions",
