@@ -10,6 +10,7 @@ import settingsRoutes from "./routes/settingsRoutes.js";
 import chatHistoryRoutes from "./routes/chatHistoryRoutes.js";
 import imageRoutes from "./routes/imageRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
+import coderRoutes from "./routes/coderRoutes.js";
 import razorpayWebhookRoutes from "./routes/razorpayWebhookRoutes.js";
 import codeProjectRoutes from "./routes/codeProjectRoutes.js";
 
