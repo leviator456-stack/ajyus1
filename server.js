@@ -127,6 +127,7 @@ app.get("/api/settings/direct-test", (req, res) => {
   Main API routes
 */
 app.use("/api/chat", chatRoutes);
+app.use("/api/coder", coderRoutes);
 
 app.use(
   "/api/code-projects",
