@@ -1,4 +1,5 @@
 import express from "express";
+import { generateCoderResponse } from "../services/coder.service.js";
 
 const router = express.Router();
 
@@ -16,17 +17,22 @@ router.post("/generate", async (req, res) => {
       });
     }
 
+    const result = await generateCoderResponse(prompt);
+
     return res.status(200).json({
       success: true,
-      message: "AJYUS Coder API is ready.",
-      prompt
+      message: result.message,
+      files: result.files
     });
   } catch (error) {
     console.error("Coder route error:", error);
 
     return res.status(500).json({
       success: false,
-      error: "Something went wrong."
+      error:
+        error instanceof Error
+          ? error.message
+          : "Unable to generate code."
     });
   }
 });
